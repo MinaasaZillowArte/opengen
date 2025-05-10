@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: white; /* Atur background default ke putih */
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Styling khusus untuk KaTeX wrapper (opsional) */
+.katex-display-wrapper {
+  /* margin: 1em 0; */ /* Margin sudah diatur oleh .prose */
+  /* background-color: rgba(209, 213, 219, 0.1); */ /* Contoh background tipis */
+  border-radius: 4px;
+  overflow-x: auto; /* Penting untuk rumus panjang */
+  padding: 0.5rem 0.75rem; /* Padding internal wrapper */
+  background-color: theme('colors.gray.100');
+}
+.dark .katex-display-wrapper {
+   background-color: theme('colors.gray.800'); /* Warna background di dark mode */
+}
+
+
+/* Pastikan textarea autocomplete background sesuai tema */
+/* Fix for Chrome */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    /* Use a box-shadow to effectively override the default background color */
+    -webkit-box-shadow: 0 0 0 1000px theme('colors.gray.100') inset !important; /* Light mode bg */
+    /* Also set text color if needed */
+    -webkit-text-fill-color: theme('colors.gray.900') !important; /* Light mode text */
+}
+.dark input:-webkit-autofill,
+.dark textarea:-webkit-autofill,
+.dark select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px theme('colors.gray.700') inset !important; /* Dark mode bg */
+    -webkit-text-fill-color: theme('colors.gray.100') !important; /* Dark mode text */
+}
