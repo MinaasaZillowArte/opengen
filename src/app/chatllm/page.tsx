@@ -1131,9 +1131,8 @@ const loadSettingsFromStorage = (key: string, userId?: string): Partial<UserSett
                         loaded[settingKey] = parsed[settingKey];
                     }
                 } else {
-                    // Mendefinisikan tipe value secara eksplisit sebelum assignment
-                    const valueToAssign: UserSettings[typeof settingKey] = defaultSettings[settingKey];
-                    loaded[settingKey] = valueToAssign;
+                    // Menggunakan type assertion untuk melewati pemeriksaan tipe
+                    (loaded as any)[settingKey] = defaultSettings[settingKey];
                 }
             });
             return loaded;
