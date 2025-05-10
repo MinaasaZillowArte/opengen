@@ -370,7 +370,7 @@ export default function Navbar({}: NavbarProps) {
                   {navLinksData.map((item) => {
                     if (isNavGroup(item)) {
                       return (
-                        <motion.li key={item.label} variants={mobileNavItemVariants} className="overflow-hidden" initial="hidden" animate="visible" exit="exit" className="overflow-hidden" >
+                        <motion.li key={item.label} variants={mobileNavItemVariants} className="overflow-hidden" initial="hidden" animate="visible" exit="exit" >
                           <button
                             onClick={() => toggleMobileSubmenu(item.label)}
                             className="w-full flex justify-between items-center py-3.5 px-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--color-primary)] rounded-md transition-all duration-200"
