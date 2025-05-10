@@ -1977,7 +1977,7 @@ export default function ChatNPT(): JSX.Element {
         requestAnimationFrame(() => { if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = `${(textareaRef.current as any).minHeight || '48px'}`; } });
 
         const isFirstUserMessageInChat = messagesBeforeUser.filter(m => m.speaker === 'user').length === 0;
-        let finalTitleForSave = chatEntryForSend?.title;
+        let finalTitleForSave: string | null = chatEntryForSend?.title ?? null;
 
         if (chatEntryForSend && chatEntryForSend.title === null && isFirstUserMessageInChat) {
             try {
@@ -2006,7 +2006,7 @@ export default function ChatNPT(): JSX.Element {
         const relevantMessagesForAPI = updatedMessagesWithUser
             .filter(m => (m.speaker === 'user' || (m.speaker === 'ai' && !m.isGenerating && !m.wasCancelled)) && m.fullText);
         const historyForAPI = relevantMessagesForAPI.slice(-MAX_HISTORY_MESSAGES_API)
-            .map(m => ({ role: m.speaker === 'user' ? 'user' as const : 'assistant' as const, content: m.fullText! }));
+            .map(m => ({ role: m.speaker === 'user' ? 'user' as const : 'ai' as const, content: m.fullText! }));
 
         await fetchAndStreamResponse(
             newUserMessage, historyForAPI, newAiMessageId, 0,
