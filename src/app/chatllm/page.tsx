@@ -1,5 +1,4 @@
 'use client';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React, {
     useState,
     useEffect,
@@ -215,6 +214,8 @@ const suggestionChipsData: SuggestionChip[] = [
     { id: 'news', labelKey: 'news', icon: FiActivity, prompt: "Summarize the latest news about " },
 ];
 
+const getModelOption = (id: string): ModelOption | undefined => availableModels.find(model => model.id === id);
+
 // --- React Components ---
 
 const InlineMath: React.FC<{ value: string }> = React.memo(({ value }) => {
@@ -318,7 +319,7 @@ const CodeBlock: React.FC<{ language: string | null; value: string; t: (key: str
                     backgroundColor: 'transparent'
                 }}
                 wrapLongLines={true}
-                PreTag={(props: React.ComponentProps<'pre'>) => <div className="overflow-x-auto" {...props} />}
+                PreTag={(props: any) => <div className="overflow-x-auto" {...props} />}
             >
                 {value}
             </SyntaxHighlighter>
@@ -344,7 +345,10 @@ type ChatBubbleProps = {
     isThinkingModeActive: boolean;
 };
 
-const ChatBubble = React.memo(({message, isStreamingEnabled, density, showTimestamp, fontSize, t, language, onRegenerate, onNavigate }: ChatBubbleProps) => {
+const ChatBubble = React.memo(({
+    message, isStreamingEnabled, density, showTimestamp, fontSize, t, language,
+    onRegenerate, onNavigate, isThinkingModeActive
+}: ChatBubbleProps) => {
     const isUser = message.speaker === 'user';
     const isThinkingBubble = message.speaker === 'thinking';
     const isAiResponse = message.speaker === 'ai';
@@ -432,7 +436,7 @@ const ChatBubble = React.memo(({message, isStreamingEnabled, density, showTimest
 
         return () => {
             isMounted = false;
-            if (controlsRef.current) controlsRef.current.stop();
+            controlsRef.current?.stop();
         };
     }, [
         message.id, message.fullText, message.isStreaming, message.speaker, message.text,
@@ -440,7 +444,7 @@ const ChatBubble = React.memo(({message, isStreamingEnabled, density, showTimest
         displayedText // Memasukkan displayedText di sini penting agar currentDisplayedLength benar.
                       // Jika ini menyebabkan masalah performa, bisa dioptimasi dengan useRef untuk currentDisplayedLength.
                       // Untuk saat ini, kita biarkan untuk melihat apakah bug hilang.
-        , isTyping]);
+    ]);
     // Akhir PERBAIKAN BUG
 
     const reasoningSteps = (isThinkingBubble && Array.isArray(message.text)) ? message.text : (message.speaker === 'ai' && Array.isArray(message.thinkingSteps) ? message.thinkingSteps : []);
@@ -468,37 +472,31 @@ const ChatBubble = React.memo(({message, isStreamingEnabled, density, showTimest
         }
     }, [fontSize]);
 
-    const markdownComponents: Partial<Components> = useMemo(() => ({
-        p: ({ node: _node, children, ...props }: React.PropsWithChildren<{ node?: Element } & Omit<JSX.IntrinsicElements['p'], 'children' | 'node'>>) => {
-            // Original logic used `node` to check children, but `_node` is from `hast` Element type
-            // For simplicity, if `_node` is needed, its type should be `Element` from 'hast'
-            // The linter flagged `node` as unused, so I'm using `_node`
-            // If the original logic `if (node?.children?.length === 1)` is critical,
-            // then `_node` should be used and typed correctly.
-            // For now, assuming the primary path is the `else` part of that original check.
-            // if (_node?.children?.length === 1) {
-            //     const childNode = _node.children[0];
-            //     if (childNode.type === 'element' && (childNode.tagName === 'code' || childNode.tagName === 'math')) { // Example check
-            //         return <>{children}</>;
-            //     }
-            // }
+    const markdownComponents: any = useMemo(() => ({ /* ... (tidak berubah) ... */
+        p: ({ node, children, ...props }: any) => {
+            if (node?.children?.length === 1) {
+                const childNode = node.children[0];
+                if ((childNode.type === 'code') || (childNode.type === 'math')) {
+                    return <>{children}</>;
+                }
+            }
             return <p className="mb-3 last:mb-0" {...props}>{children}</p>;
         },
-        strong: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['strong'], 'node'>) => <strong className="font-semibold" {...props} />,
-        em: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['em'], 'node'>) => <em className="italic" {...props} />,
-        ol: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['ol'], 'node'>) => <ol className="list-decimal list-outside ml-6 my-3 space-y-1.5" {...props} />,
-        ul: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['ul'], 'node'>) => <ul className="list-disc list-outside ml-6 my-3 space-y-1.5" {...props} />,
-        li: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['li'], 'node'>) => <li className="mb-1" {...props} />,
-        blockquote: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['blockquote'], 'node'>) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 py-2 my-4 italic text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 rounded-r-md" {...props} />,
-        hr: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['hr'], 'node'>) => <hr className="my-5 border-gray-200 dark:border-gray-700" {...props} />,
-        a: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['a'], 'node'>) => <a className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline" target="_blank" rel="noopener noreferrer nofollow" {...props} />,
-        h1: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['h1'], 'node'>) => <h1 className="text-2xl font-bold mt-6 mb-3 border-b pb-2 border-gray-300 dark:border-gray-700" {...props} />,
-        h2: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['h2'], 'node'>) => <h2 className="text-xl font-semibold mt-5 mb-2 border-b pb-1.5 border-gray-300 dark:border-gray-700" {...props} />,
-        h3: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['h3'], 'node'>) => <h3 className="text-lg font-semibold mt-5 mb-2" {...props} />,
-        h4: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['h4'], 'node'>) => <h4 className="text-base font-semibold mt-4 mb-1.5" {...props} />,
-        h5: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['h5'], 'node'>) => <h5 className="text-sm font-semibold mt-3 mb-1" {...props} />,
-        h6: ({ node: _node, ...props }: { node?: Element } & Omit<JSX.IntrinsicElements['h6'], 'node'>) => <h6 className="text-xs font-semibold mt-3 mb-1 text-gray-500 dark:text-gray-400 uppercase tracking-wider" {...props} />,
-        code({ node: _node, inline, className, children, ...props }: { node?: Element; inline?: boolean; className?: string; children: React.ReactNode } & Record<string, unknown>) {
+        strong: ({ node, ...props }: any) => <strong className="font-semibold" {...props} />,
+        em: ({ node, ...props }: any) => <em className="italic" {...props} />,
+        ol: ({ node, ...props }: any) => <ol className="list-decimal list-outside ml-6 my-3 space-y-1.5" {...props} />,
+        ul: ({ node, ...props }: any) => <ul className="list-disc list-outside ml-6 my-3 space-y-1.5" {...props} />,
+        li: ({ node, ...props }: any) => <li className="mb-1" {...props} />,
+        blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 py-2 my-4 italic text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 rounded-r-md" {...props} />,
+        hr: ({ node, ...props }: any) => <hr className="my-5 border-gray-200 dark:border-gray-700" {...props} />,
+        a: ({ node, ...props }: any) => <a className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline" target="_blank" rel="noopener noreferrer nofollow" {...props} />,
+        h1: ({ node, ...props }: any) => <h1 className="text-2xl font-bold mt-6 mb-3 border-b pb-2 border-gray-300 dark:border-gray-700" {...props} />,
+        h2: ({ node, ...props }: any) => <h2 className="text-xl font-semibold mt-5 mb-2 border-b pb-1.5 border-gray-300 dark:border-gray-700" {...props} />,
+        h3: ({ node, ...props }: any) => <h3 className="text-lg font-semibold mt-5 mb-2" {...props} />,
+        h4: ({ node, ...props }: any) => <h4 className="text-base font-semibold mt-4 mb-1.5" {...props} />,
+        h5: ({ node, ...props }: any) => <h5 className="text-sm font-semibold mt-3 mb-1" {...props} />,
+        h6: ({ node, ...props }: any) => <h6 className="text-xs font-semibold mt-3 mb-1 text-gray-500 dark:text-gray-400 uppercase tracking-wider" {...props} />,
+        code({ node, inline, className, children, ...props }: any) {
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1].toLowerCase() : null;
             const codeContent = String(children).replace(/\n$/, '');
@@ -509,7 +507,7 @@ const ChatBubble = React.memo(({message, isStreamingEnabled, density, showTimest
                 }
                 return <CodeBlock language={language} value={codeContent} t={t} {...props} />;
             }
-            return (<code className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 text-[0.9em] font-mono mx-0.5 break-words" {...props} >{children}</code>);
+            return (<code className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 text-[0.9em] font-mono mx-0.5 break-words" {...props}>{children}</code>);
         },
         inlineMath: ({ value }: { value: string }) => !value ? null : <InlineMath value={value} />,
         math: ({ value }: { value: string }) => !value ? null : <BlockMath value={value} />,
