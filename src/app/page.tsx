@@ -28,7 +28,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar'; // Pastikan path ini benar
 import Footer from '@/components/Footer'; // Pastikan path ini benar
-import { auth } from '@/lib/firebase'; // Pastikan path ini benar
 
 // AbstractSvgPlaceholder digunakan di NewsCard, jadi dipertahankan
 const AbstractSvgPlaceholder = React.memo(({ className, seed = 0 }: { className?: string, seed?: number }) => {

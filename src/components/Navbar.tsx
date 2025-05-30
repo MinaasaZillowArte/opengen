@@ -1,7 +1,8 @@
+// src/components/Navbar.tsx
 'use client';
 
 import Link from 'next/link';
-import { FiCpu, FiMenu, FiX, FiChevronDown, FiChevronRight } from 'react-icons/fi'; // Removed FiMessageSquare, Added FiChevronDown, FiChevronRight
+import { FiCpu, FiMenu, FiX, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
@@ -11,11 +12,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 const NAVBAR_HEIGHT_MOBILE = 70; // px - Standardized
 const NAVBAR_HEIGHT_DESKTOP = 80; // px - Standardized
 
-interface NavbarProps {
-  // isTransparent prop is removed as Navbar now manages its own scroll state
-}
-
-// New NavItem structure for dropdowns
 interface NavLink {
   href: string;
   label: string;
@@ -32,7 +28,6 @@ interface NavGroup {
 
 type NavItemType = NavLink | NavGroup;
 
-// Type guard
 function isNavGroup(item: NavItemType): item is NavGroup {
   return (item as NavGroup).children !== undefined;
 }
@@ -45,14 +40,14 @@ const navLinksData: NavItemType[] = [
       { href: '/research/chatnpt', label: 'ChatNPT Models', description: "Explore our flagship language models." },
       {
         label: 'RSM Initiatives',
-        href: '/research/rsm', 
+        href: '/research/rsm',
         children: [
           { href: '/research/rsm/deep-thinking', label: 'DeepThinking Architectures' },
-          { href: '/research/rsm/model-scaling', label: 'Model Scaling & Efficiency' },
-          { href: '/research/rsm/interpretability', label: 'AI Interpretability' },
+          { href: '/research/rsm/model-scaling', label: 'G02K' },
+          { href: '/research/rsm/interpretability', label: 'OuX 1.0' },
           { href: '/research/rsm/long-context', label: 'Long-Context Processing' },
-          { href: '/research/rsm/multimodal-fusion', label: 'Multimodal Fusion AI' },
-          { href: '/research/rsm/alignment', label: 'AI Alignment Research' },
+          { href: '/research/rsm/multimodal-fusion', label: 'Multimodal Processing NPT' },
+          { href: '/research/rsm/alignment', label: 'Intial P' },
         ],
       },
       { href: '/research/papers', label: 'Publications', description: "Read our latest papers." },
@@ -81,7 +76,7 @@ const navLinksData: NavItemType[] = [
   { href: '/#api-section', label: 'API' },
 ];
 
-export default function Navbar({}: NavbarProps) {
+export default function Navbar() { // Removed unused NavbarProps
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -117,60 +112,70 @@ export default function Navbar({}: NavbarProps) {
 
   const closeMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(false);
+    setOpenMobileSubmenus({}); // Close all submenus when main mobile menu closes
   }, []);
 
   const toggleMobileSubmenu = useCallback((label: string) => {
     setOpenMobileSubmenus(prev => ({ ...prev, [label]: !prev[label] }));
   }, []);
 
-  const isTransparentEffective = isMounted && pathname === '/' && !isScrolled && !isMobileMenuOpen;
+  // --- REVISED TRANSPARENCY & STYLING LOGIC ---
+  const pagesWithTransparentNavbar = ['/', '/research/rsm']; // Pages that start with a dark hero
+  const isSpecialDarkPage = pathname === '/research/rsm'; // Specifically for RSM page styling when opaque
+
+  const isTransparentEffective = isMounted && pagesWithTransparentNavbar.includes(pathname) && !isScrolled && !isMobileMenuOpen;
 
   const navbarBaseClasses = "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out";
   const navbarHeightClass = `h-[${NAVBAR_HEIGHT_MOBILE}px] md:h-[${NAVBAR_HEIGHT_DESKTOP}px]`;
 
-  const navbarStyleClasses = isTransparentEffective
-    ? "bg-transparent shadow-none"
-    : "bg-[var(--bg-primary)]/90 backdrop-blur-lg shadow-md"; // Adjusted opacity and shadow
+  let currentNavbarStyleClasses = "";
+  let currentLinkColorClasses = "";
+  let currentLogoIconColorClasses = "";
+  let currentLogoTextColorClasses = "";
+  let currentMobileIconColorClass = "";
 
-  const linkBaseClasses = "text-sm font-medium transition-all duration-200 ease-in-out relative"; // Added relative for pseudo-elements
-  const linkColorClasses = isTransparentEffective
-    ? "text-white hover:text-gray-100"
-    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]";
+  if (isTransparentEffective) {
+    currentNavbarStyleClasses = "bg-transparent shadow-none";
+    currentLinkColorClasses = "text-white hover:text-gray-200"; // Adjusted for better visibility from gray-100
+    currentLogoIconColorClasses = "text-white";
+    currentLogoTextColorClasses = "text-white";
+    currentMobileIconColorClass = "text-white hover:text-gray-200";
+  } else if (isSpecialDarkPage && !isTransparentEffective) {
+    // Opaque state specifically for /research/rsm page
+    currentNavbarStyleClasses = "bg-black/80 backdrop-blur-md shadow-lg"; // Use black, slightly more blur & shadow
+    currentLinkColorClasses = "text-gray-300 hover:text-sky-300"; // Lighter text on black
+    currentLogoIconColorClasses = "text-sky-400"; // Branded color or white
+    currentLogoTextColorClasses = "text-gray-100 hover:text-sky-300";
+    currentMobileIconColorClass = "text-gray-200 hover:text-white";
+  } else {
+    // Default opaque state for other pages (using CSS variables)
+    currentNavbarStyleClasses = "bg-[var(--bg-primary)]/90 backdrop-blur-lg shadow-md";
+    currentLinkColorClasses = "text-[var(--text-secondary)] hover:text-[var(--text-primary)]";
+    currentLogoIconColorClasses = "text-[var(--color-primary)]";
+    currentLogoTextColorClasses = "text-[var(--text-primary)]";
+    currentMobileIconColorClass = "text-[var(--text-primary)] hover:text-[var(--color-primary)]";
+  }
+  // --- END OF REVISED LOGIC ---
 
-  const logoIconColorClasses = isTransparentEffective
-    ? "text-white"
-    : "text-[var(--color-primary)]";
-  
-  const logoTextColorClasses = isTransparentEffective
-    ? "text-white"
-    : "text-[var(--text-primary)]";
+  const linkBaseClasses = "relative font-medium transition-colors duration-300";
 
-  // Explicit color for mobile menu icon based on navbar transparency
-  const mobileIconColorClass = isTransparentEffective
-    ? "text-white hover:text-gray-200"
-    : "text-[var(--text-primary)] hover:text-[var(--color-primary)]";
-
-  // Framer Motion variants
-  // NEW Mobile Menu (Slide from Right)
+  // Framer Motion variants (no changes here from previous version)
   const mobileMenuOverlayVariants = {
-    hidden: { x: "100%", opacity: 0.8, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }, // VALID BEZIER
-    visible: { x: "0%", opacity: 1, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }, // VALID BEZIER
-    exit: { x: "100%", opacity: 0.8, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 } }, // VALID BEZIER
+    hidden: { x: "100%", opacity: 0.8, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+    visible: { x: "0%", opacity: 1, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+    exit: { x: "100%", opacity: 0.8, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 } },
   };
-  
   const mobileNavContainerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
     exit: { opacity: 0, transition: { staggerChildren: 0.05, staggerDirection: -1, when: "afterChildren" } }
   };
-  
   const mobileNavItemVariants = {
     hidden: { opacity: 0, x: 20 },
     visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 100, damping: 15 } },
     exit: { opacity: 0, x: -20, transition: { duration: 0.15 } }
   };
-
-  const iconTransition = { duration: 0.3, ease: [0.4, 0, 0.2, 1] }; // VALID BEZIER
+  const iconTransition = { duration: 0.3, ease: [0.4, 0, 0.2, 1] };
   const menuIconVariants = {
     initial: { rotate: 0, opacity: 0 },
     animate: { rotate: 0, opacity: 1, transition: iconTransition },
@@ -181,14 +186,11 @@ export default function Navbar({}: NavbarProps) {
     animate: { rotate: 0, opacity: 1, transition: iconTransition },
     exit: { rotate: 0, opacity: 0, transition: iconTransition },
   };
-  
-  // NEW Desktop Dropdown Variants
   const dropdownVariants = {
     hidden: { opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.2, ease: "easeOut" } },
     visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.25, ease: "easeIn" } },
     exit: { opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.15, ease: "easeOut" } }
   };
-
   const subDropdownVariants = {
     hidden: { opacity: 0, x: 10, scale: 0.98, transition: { duration: 0.2, ease: "easeOut" } },
     visible: { opacity: 1, x: 0, scale: 1, transition: { duration: 0.25, ease: "easeIn" } },
@@ -196,27 +198,26 @@ export default function Navbar({}: NavbarProps) {
   };
 
   if (!isMounted) {
-    // Fallback for SSR or before hydration, ensures layout consistency
-    return <div className={`${navbarBaseClasses} ${navbarHeightClass} bg-[var(--bg-primary)]`} />;
+    return <div className={`${navbarBaseClasses} ${navbarHeightClass} bg-black md:bg-transparent`} />; // Fallback for SSR, black for mobile on RSM
   }
 
   return (
     <>
-      <motion.nav className={`${navbarBaseClasses} ${navbarHeightClass} ${navbarStyleClasses}`}>
+      <motion.nav className={`${navbarBaseClasses} ${navbarHeightClass} ${currentNavbarStyleClasses}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group" aria-label="OpenGen Homepage" onClick={closeMobileMenu}>
-            <FiCpu className={`w-7 h-7 md:w-8 md:h-8 transition-colors duration-300 ${logoIconColorClasses} group-hover:text-[var(--color-secondary)]`} />
-            <span className={`text-xl md:text-2xl font-bold transition-colors duration-300 ${logoTextColorClasses} group-hover:text-[var(--color-secondary)]`}>
+            <FiCpu className={`w-7 h-7 md:w-8 md:h-8 transition-colors duration-300 ${currentLogoIconColorClasses} group-hover:text-[var(--color-secondary)]`} />
+            <span className={`text-xl md:text-2xl font-bold transition-colors duration-300 ${currentLogoTextColorClasses} group-hover:text-[var(--color-secondary)]`}>
               OpenGen
             </span>
           </Link>
 
-          {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
             {navLinksData.map((item) => {
+              const isActive = (item.href && pathname === item.href) || (isNavGroup(item) && item.href && pathname.startsWith(item.href));
+              const activeClass = isActive ? (isSpecialDarkPage && !isTransparentEffective ? 'after:w-full text-sky-300' : 'after:w-full text-[var(--color-primary)]') : '';
+              
               if (isNavGroup(item)) {
-                // Render dropdown menu item
                 return (
                   <motion.div
                     key={item.label}
@@ -225,9 +226,10 @@ export default function Navbar({}: NavbarProps) {
                     onMouseLeave={() => { setOpenDesktopDropdown(null); setOpenDesktopSubDropdown(null); }}
                   >
                     <button
-                      className={`${linkBaseClasses} ${linkColorClasses} py-2 flex items-center group focus:outline-none
-                                  after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:bg-[var(--color-primary)] 
-                                  after:transition-all after:duration-300 hover:after:w-full ${openDesktopDropdown === item.label ? 'after:w-full' : ''}`}
+                      className={`${linkBaseClasses} ${currentLinkColorClasses} py-2 flex items-center group focus:outline-none
+                                  after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 
+                                  after:bg-[var(--color-primary)] after:transition-all after:duration-300 hover:after:w-full 
+                                  ${openDesktopDropdown === item.label ? 'after:w-full' : ''} ${activeClass}`}
                       aria-haspopup="true"
                       aria-expanded={openDesktopDropdown === item.label}
                     >
@@ -241,25 +243,28 @@ export default function Navbar({}: NavbarProps) {
                           initial="hidden"
                           animate="visible"
                           exit="exit"
-                          className="absolute left-0 mt-3 w-72 bg-[var(--card-bg)] rounded-lg shadow-2xl z-40 border border-[var(--border-color)] py-3"
+                          className={`absolute left-0 mt-3 w-72 rounded-lg shadow-2xl z-40 border py-3 
+                                      ${isSpecialDarkPage && !isTransparentEffective ? 'bg-black border-gray-700' : 'bg-[var(--card-bg)] border-[var(--border-color)]'}`}
                         >
                           {item.children.map((child) => {
-                            if (isNavGroup(child)) { // Nested dropdown (e.g., RSM)
+                             const childLinkColor = isSpecialDarkPage && !isTransparentEffective ? 'text-gray-300 hover:text-sky-300' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+                             const childBgHover = isSpecialDarkPage && !isTransparentEffective ? 'hover:bg-gray-800' : 'hover:bg-[var(--bg-tertiary)]';
+
+                            if (isNavGroup(child)) {
                               return (
-                                <div 
-                                  key={child.label} 
+                                <div
+                                  key={child.label}
                                   className="relative"
                                   onMouseEnter={() => setOpenDesktopSubDropdown(child.label)}
-                                  // onMouseLeave={() => setOpenDesktopSubDropdown(null)} // Handled by parent
                                 >
                                   <Link
-                                    href={child.href || '#'} // Use href if group label is a link
+                                    href={child.href || '#'}
                                     passHref
-                                    legacyBehavior // Ensures legacyBehavior is true when an <a> tag is a child
+                                    legacyBehavior
                                   >
-                                    <a className="w-full px-5 py-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] flex justify-between items-center rounded-md transition-colors duration-150">
+                                    <a className={`w-full px-5 py-3 text-sm ${childLinkColor} ${childBgHover} flex justify-between items-center rounded-md transition-colors duration-150 group/sub`}>
                                       <span>{child.label}</span>
-                                      <FiChevronRight className="w-4 h-4 text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-primary)]" />
+                                      <FiChevronRight className={`w-4 h-4 ${isSpecialDarkPage && !isTransparentEffective ? 'text-gray-500 group-hover/sub:text-sky-300' : 'text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-primary)]'}`} />
                                     </a>
                                   </Link>
                                   <AnimatePresence>
@@ -269,13 +274,14 @@ export default function Navbar({}: NavbarProps) {
                                       initial="hidden"
                                       animate="visible"
                                       exit="exit"
-                                      className="absolute left-full -top-3 ml-2 w-72 bg-[var(--card-bg)] rounded-lg shadow-2xl z-50 border border-[var(--border-color)] py-3"
+                                      className={`absolute left-full -top-3 ml-2 w-72 rounded-lg shadow-2xl z-50 border py-3
+                                                  ${isSpecialDarkPage && !isTransparentEffective ? 'bg-black border-gray-700' : 'bg-[var(--card-bg)] border-[var(--border-color)]'}`}
                                     >
                                       {child.children.map(subChild => (
                                         <Link key={subChild.label} href={(subChild as NavLink).href} passHref legacyBehavior>
-                                          <a className="block px-5 py-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-colors duration-150">
+                                          <a className={`block px-5 py-3 text-sm ${childLinkColor} ${childBgHover} rounded-md transition-colors duration-150`}>
                                             {subChild.label}
-                                            {(subChild as NavLink).description && <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{ (subChild as NavLink).description}</p>}
+                                            {(subChild as NavLink).description && <p className={`text-xs mt-0.5 ${isSpecialDarkPage && !isTransparentEffective ? 'text-gray-500' : 'text-[var(--text-tertiary)]' }`}>{(subChild as NavLink).description}</p>}
                                           </a>
                                         </Link>
                                       ))}
@@ -285,12 +291,11 @@ export default function Navbar({}: NavbarProps) {
                                 </div>
                               );
                             }
-                            // Regular dropdown link
                             return (
                               <Link key={child.label} href={(child as NavLink).href} passHref legacyBehavior>
-                                <a className="block px-5 py-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-colors duration-150">
+                                <a className={`block px-5 py-3 text-sm ${childLinkColor} ${childBgHover} rounded-md transition-colors duration-150`}>
                                   {child.label}
-                                  {(child as NavLink).description && <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{(child as NavLink).description}</p>}
+                                  {(child as NavLink).description && <p className={`text-xs mt-0.5 ${isSpecialDarkPage && !isTransparentEffective ? 'text-gray-500' : 'text-[var(--text-tertiary)]' }`}>{(child as NavLink).description}</p>}
                                 </a>
                               </Link>
                             );
@@ -301,14 +306,13 @@ export default function Navbar({}: NavbarProps) {
                   </motion.div>
                 );
               }
-              // Render regular link
               return (
                 <motion.div key={item.label} whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
                   <Link
                     href={(item as NavLink).href}
-                    className={`${linkBaseClasses} ${linkColorClasses} py-2
-                                after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 
-                                after:bg-[var(--color-primary)] after:transition-all after:duration-300 hover:after:w-full`}
+                    className={`${linkBaseClasses} ${currentLinkColorClasses} py-2
+                                after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0
+                                after:bg-[var(--color-primary)] after:transition-all after:duration-300 hover:after:w-full ${activeClass}`}
                   >
                     {item.label}
                   </Link>
@@ -317,13 +321,11 @@ export default function Navbar({}: NavbarProps) {
             })}
           </div>
 
-          {/* Mobile Menu Toggle (CTA Button Removed) */}
           <div className="flex items-center">
-            {/* Mobile Menu Button */}
             <div className="md:hidden">
               <motion.button
                 onClick={toggleMobileMenu}
-                className={`p-2.5 rounded-md ${mobileIconColorClass} focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--color-primary)] transition-colors duration-200`}
+                className={`p-2.5 rounded-md ${currentMobileIconColorClass} focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--color-primary)] transition-colors duration-200`}
                 aria-label={isMobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
                 aria-expanded={isMobileMenuOpen}
                 whileHover={{ scale: 1.1 }}
@@ -354,26 +356,33 @@ export default function Navbar({}: NavbarProps) {
             variants={mobileMenuOverlayVariants}
             initial="hidden"
             animate="visible"
-            exit="hidden"
-            className={`md:hidden fixed top-0 right-0 bottom-0 w-full max-w-xs sm:max-w-sm bg-[var(--bg-secondary)] shadow-2xl z-40 overflow-y-auto`} // Slide from right
+            exit="exit"
+            className={`md:hidden fixed top-0 right-0 bottom-0 w-full max-w-xs sm:max-w-sm shadow-2xl z-40 overflow-y-auto
+                        ${isSpecialDarkPage ? 'bg-black text-gray-200' : 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'}`}
           >
-            <motion.div 
-              className={`px-5 py-8 flex flex-col h-full pt-[${NAVBAR_HEIGHT_MOBILE + 10}px]`} // Add padding top for close button area
+            <motion.div
+              className={`px-5 py-8 flex flex-col h-full pt-[${NAVBAR_HEIGHT_MOBILE + 10}px]`}
               variants={mobileNavContainerVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              style={{ '--navbar-height-mobile': `${NAVBAR_HEIGHT_MOBILE}px` } as React.CSSProperties} // For calc()
+              style={{ '--navbar-height-mobile': `${NAVBAR_HEIGHT_MOBILE}px` } as React.CSSProperties}
             >
               <nav className="flex-grow">
                 <ul className="space-y-2">
                   {navLinksData.map((item) => {
+                    const mobileLinkColor = isSpecialDarkPage ? 'text-gray-200 hover:text-sky-400' : 'text-[var(--text-primary)] hover:text-[var(--color-primary)]';
+                    const mobileSubmenuLinkColor = isSpecialDarkPage ? 'text-gray-400 hover:text-sky-300' : 'text-[var(--text-secondary)] hover:text-[var(--color-primary)]';
+                    const mobileBgHover = isSpecialDarkPage ? 'hover:bg-gray-800' : 'hover:bg-[var(--bg-tertiary)]';
+                    const mobileBorderColor = isSpecialDarkPage ? 'border-sky-500/30' : 'border-[var(--color-primary)]/30';
+
+
                     if (isNavGroup(item)) {
                       return (
-                        <motion.li key={item.label} variants={mobileNavItemVariants} className="overflow-hidden" initial="hidden" animate="visible" exit="exit" >
+                        <motion.li key={item.label} variants={mobileNavItemVariants} className="overflow-hidden">
                           <button
                             onClick={() => toggleMobileSubmenu(item.label)}
-                            className="w-full flex justify-between items-center py-3.5 px-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--color-primary)] rounded-md transition-all duration-200"
+                            className={`w-full flex justify-between items-center py-3.5 px-3 text-base font-semibold ${mobileLinkColor} ${mobileBgHover} rounded-md transition-all duration-200`}
                             aria-expanded={openMobileSubmenus[item.label] || false}
                           >
                             <span>{item.label}</span>
@@ -382,26 +391,35 @@ export default function Navbar({}: NavbarProps) {
                           <AnimatePresence>
                             {openMobileSubmenus[item.label] && (
                               <motion.ul
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
                                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                                className="pl-5 mt-1 space-y-1 border-l-2 border-[var(--color-primary)]/30"
-                                initial="hidden"
-                                animate="visible"
-                                exit="exit"
+                                className={`pl-5 mt-1 space-y-1 border-l-2 ${mobileBorderColor}`}
                               >
                                 {item.children.map(child => {
-                                  // Simplified for mobile: no nested groups for now, treat all children as links
-                                  if (isNavGroup(child) && child.href) { // If group has a main link
+                                  if (isNavGroup(child) && child.href) {
                                     return (
-                                      <motion.li key={child.label} variants={mobileNavItemVariants} initial="hidden" animate="visible" exit="exit">
-                                        <Link href={child.href} className="block py-2.5 px-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-all duration-150" onClick={closeMobileMenu}>
+                                      <motion.li key={child.label} variants={mobileNavItemVariants}>
+                                        <Link href={child.href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu}>
                                           {child.label} (Overview)
                                         </Link>
                                       </motion.li>
                                     );
+                                  } else if (isNavGroup(child)) { // Handle nested groups without a direct link
+                                     // For simplicity, mobile doesn't deeply nest further here.
+                                     // You could implement another level of toggle if needed.
+                                     return child.children.map(subItem => (
+                                        <motion.li key={subItem.label} variants={mobileNavItemVariants}>
+                                            <Link href={(subItem as NavLink).href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu}>
+                                                {subItem.label}
+                                            </Link>
+                                        </motion.li>
+                                     ));
                                   }
                                   return (
                                     <motion.li key={child.label} variants={mobileNavItemVariants} >
-                                      <Link href={(child as NavLink).href} className="block py-2.5 px-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-all duration-150" onClick={closeMobileMenu}>
+                                      <Link href={(child as NavLink).href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu}>
                                         {child.label}
                                       </Link>
                                     </motion.li>
@@ -417,7 +435,7 @@ export default function Navbar({}: NavbarProps) {
                       <motion.li key={item.label} variants={mobileNavItemVariants}>
                         <Link
                           href={(item as NavLink).href}
-                          className="block py-3.5 px-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--color-primary)] rounded-md transition-all duration-200"
+                          className={`block py-3.5 px-3 text-base font-semibold ${mobileLinkColor} ${mobileBgHover} rounded-md transition-all duration-200`}
                           onClick={closeMobileMenu}
                         >
                           {item.label}
@@ -428,9 +446,8 @@ export default function Navbar({}: NavbarProps) {
                 </ul>
               </nav>
 
-              {/* Copyright remains, CTA button removed */}
               <motion.div className="mt-auto pt-6 pb-5 text-center" variants={mobileNavItemVariants}>
-                <p className="text-xs text-[var(--text-tertiary)]">
+                <p className={`text-xs ${isSpecialDarkPage ? 'text-gray-500': 'text-[var(--text-tertiary)]'}`}>
                   OpenGen &copy; {new Date().getFullYear()}
                 </p>
               </motion.div>

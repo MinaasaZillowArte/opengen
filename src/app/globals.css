@@ -1,43 +1,164 @@
-@import "tailwindcss";
+@import "tailwindcss"; /* Or @tailwind base; @tailwind components; @tailwind utilities; */
+
+:root {
+  /* Default Light Theme Variables (will be overridden by JS) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --card-bg: #ffffff;
+  --accent-bg-light: #e0f2fe;
+  --svg-bg: #f1f5f9; /* For AbstractSvgPlaceholder */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-on-primary-bg: #0f172a;
+  --text-on-accent-bg: #0284c7;
+  --border-color: #e2e8f0;
+  --border-color-hover: #cbd5e1;
+  --border-color-translucent: rgba(226, 232, 240, 0.5); /* For subtle borders */
+  --button-bg: #ffffff;
+  --button-hover-bg: #f1f5f9;
+  --button-secondary-bg: #f1f5f9;
+  --button-secondary-text: #334155;
+  --button-secondary-hover-bg: #e2e8f0;
+  --color-primary: #3b82f6;
+  --color-primary-accent: #2563eb; /* A slightly darker primary for hover accents */
+  --color-primary-transparent: rgba(59, 130, 246, 0.25); /* For glows or subtle backgrounds */
+  --color-secondary: #8b5cf6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --cta-glow-color: rgba(59, 130, 246, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -4px rgba(0,0,0,0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.07), 0 8px 10px -6px rgba(0,0,0,0.04);
+  --svg-grad-1a: rgb(96, 165, 250); /* For AbstractSvgPlaceholder */
+  --svg-grad-1b: rgb(167, 139, 250);
+  --svg-grad-2a: rgb(192, 132, 252);
+  --svg-grad-2b: rgb(59, 130, 246);
+  --code-bg: #f1f5f9;      /* For code blocks */
+  --code-text: #1e293b;    /* For code blocks */
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-track: #f8fafc;
+  --bg-secondary-translucent: rgba(248, 250, 252, 0.7); /* For backdrop blurs */
+  --inline-code-bg: rgba(226, 232, 240, 0.5);
+  --inline-code-text: #0f172a;
+  --inline-code-border: #e2e8f0;
+  --overlay-bg: rgba(248, 250, 252, 0.8); /* For modal backdrop */
+}
+
+.dark {
+  /* Dark Theme Variables */
+  --bg-primary: #0f172a; /* slate-900 */
+  --bg-secondary: #1e293b; /* slate-800 */
+  --bg-tertiary: #334155; /* slate-700 */
+  --card-bg: #1e293b;
+  --accent-bg-light: rgba(59, 130, 246, 0.15); /* blue-500 with low alpha */
+  --svg-bg: #334155;
+  --text-primary: #f1f5f9; /* slate-100 */
+  --text-secondary: #cbd5e1; /* slate-300 */
+  --text-tertiary: #94a3b8; /* slate-400 */
+  --text-on-primary-bg: #f1f5f9;
+  --text-on-accent-bg: #60a5fa; /* blue-400 */
+  --border-color: #334155;
+  --border-color-hover: #475569; /* slate-600 */
+  --border-color-translucent: rgba(71, 85, 105, 0.5);
+  --button-bg: #334155;
+  --button-hover-bg: #475569;
+  --button-secondary-bg: #475569;
+  --button-secondary-text: #f1f5f9;
+  --button-secondary-hover-bg: #59677c; /* slate-500 approx */
+  --color-primary: #60a5fa; /* blue-400 */
+  --color-primary-accent: #3b82f6; /* blue-500 */
+  --color-primary-transparent: rgba(96, 165, 250, 0.25);
+  --color-secondary: #a78bfa; /* violet-400 */
+  --color-success: #34d399; /* emerald-400 */
+  --color-warning: #f59e0b; /* amber-500 */
+  --color-error: #f43f5e; /* rose-500 */
+  --cta-glow-color: rgba(96, 165, 250, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.2), 0 2px 4px -2px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.2), 0 4px 6px -4px rgba(0,0,0,0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1);
+  --svg-grad-1a: rgb(96, 165, 250);
+  --svg-grad-1b: rgb(167, 139, 250);
+  --svg-grad-2a: rgb(192, 132, 252);
+  --svg-grad-2b: rgb(59, 130, 246);
+  --code-bg: #0f172a;      /* slate-900 */
+  --code-text: #cbd5e1;    /* slate-300 */
+  --scrollbar-thumb: #475569;
+  --scrollbar-track: #1e293b;
+  --bg-secondary-translucent: rgba(30, 41, 59, 0.7);
+  --inline-code-bg: rgba(51, 65, 85, 0.5); /* slate-700 with alpha */
+  --inline-code-text: #e2e8f0; /* slate-200 */
+  --inline-code-border: #475569;
+  --overlay-bg: rgba(15, 23, 42, 0.8); /* slate-900 with alpha for modal backdrop */
+}
+
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: white; /* Atur background default ke putih */
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  font-family: 'Inter', sans-serif; /* Ensure Inter is primary */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Custom scrollbar (already in tailwind.config.ts, but can be here too) */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 4px;
+    border: 2px solid var(--scrollbar-track);
+  }
 }
 
-/* Styling khusus untuk KaTeX wrapper (opsional) */
-.katex-display-wrapper {
-  /* margin: 1em 0; */ /* Margin sudah diatur oleh .prose */
-  /* background-color: rgba(209, 213, 219, 0.1); */ /* Contoh background tipis */
+/* Styling for KaTeX display wrapper (from your page.tsx) */
+.katex-display > .katex { /* Target KaTeX output more directly */
+  /* margin: 1em 0; /* Default prose might handle this */
   border-radius: 4px;
-  overflow-x: auto; /* Penting untuk rumus panjang */
-  padding: 0.5rem 0.75rem; /* Padding internal wrapper */
-  background-color: theme('colors.gray.100');
-}
-.dark .katex-display-wrapper {
-   background-color: theme('colors.gray.800'); /* Warna background di dark mode */
+  overflow-x: auto;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-tertiary); /* Use theme variable */
+  display: block; /* Ensure it takes full width available */
 }
 
-
-/* Pastikan textarea autocomplete background sesuai tema */
-/* Fix for Chrome */
+/* Autocomplete styles (from your globals.css) */
 input:-webkit-autofill,
 textarea:-webkit-autofill,
 select:-webkit-autofill {
-    /* Use a box-shadow to effectively override the default background color */
-    -webkit-box-shadow: 0 0 0 1000px theme('colors.gray.100') inset !important; /* Light mode bg */
-    /* Also set text color if needed */
-    -webkit-text-fill-color: theme('colors.gray.900') !important; /* Light mode text */
+    -webkit-box-shadow: 0 0 0 1000px var(--bg-tertiary) inset !important; /* Use theme variable */
+    -webkit-text-fill-color: var(--text-primary) !important; /* Use theme variable */
 }
-.dark input:-webkit-autofill,
-.dark textarea:-webkit-autofill,
-.dark select:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 1000px theme('colors.gray.700') inset !important; /* Dark mode bg */
-    -webkit-text-fill-color: theme('colors.gray.100') !important; /* Dark mode text */
+/* Ensure prose styles adapt to theming for code blocks too */
+.prose pre {
+  background-color: var(--code-bg) !important;
+  color: var(--code-text) !important;
+}
+.prose code { /* Inline code */
+  background-color: var(--inline-code-bg) !important;
+  color: var(--inline-code-text) !important;
+  border: 1px solid var(--inline-code-border) !important;
+  padding: 0.1em 0.35em !important;
+  border-radius: 4px !important;
+  font-size: 0.875em !important;
+}
+.prose code::before,
+.prose code::after {
+  content: "" !important;
 }
