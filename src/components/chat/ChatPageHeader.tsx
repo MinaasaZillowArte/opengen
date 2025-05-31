@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { FiSettings, FiSun, FiMoon, FiCpu } from 'react-icons/fi';
+import { FiSettings, FiSun, FiMoon, FiCpu, FiMenu } from 'react-icons/fi'; // Added FiMenu
 import ModelSelector from './ModelSelector';
 
 interface ChatPageHeaderProps {
@@ -12,6 +12,7 @@ interface ChatPageHeaderProps {
   theme: 'light' | 'dark';
   onThemeChange: () => void;
   onSettingsClick: () => void;
+  onToggleSidebar: () => void; // New prop
 }
 
 export const CHAT_PAGE_HEADER_HEIGHT_MOBILE = 60; // px
@@ -24,18 +25,26 @@ const ChatPageHeader: React.FC<ChatPageHeaderProps> = ({
   theme,
   onThemeChange,
   onSettingsClick,
+  onToggleSidebar, // New prop
 }) => {
   return (
-    <header 
+    <header
       className="fixed top-0 left-0 right-0 z-40 bg-[var(--bg-primary)] border-b border-[var(--border-color)]"
       style={{ height: `${CHAT_PAGE_HEADER_HEIGHT_MOBILE}px` }}
     >
-      {/* --- PERUBAHAN DI SINI --- */}
-      <div 
-        className="flex items-center justify-between h-full px-3 md:px-4" /* Hapus max-w-4xl dan mx-auto */
+      <div
+        className="flex items-center justify-between h-full px-3 md:px-4"
         style={{ '--chat-header-height-desktop': `${CHAT_PAGE_HEADER_HEIGHT_DESKTOP}px` } as React.CSSProperties}
       >
         <div className="flex items-center gap-2">
+          {/* Sidebar Toggle Button - visible on all screens for consistency, or md:hidden if sidebar is always open on desktop */}
+          <button
+            onClick={onToggleSidebar}
+            title="Toggle Sidebar"
+            className="p-2 text-[var(--text-secondary)] hover:text-[var(--color-primary)] rounded-md hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <FiMenu className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
            <div className="flex items-center gap-2 text-[var(--text-primary)]">
             <FiCpu className="w-6 h-6 text-[var(--color-primary)]" />
             <span className="font-semibold text-lg hidden sm:inline">ChatNPT</span>
@@ -68,7 +77,7 @@ const ChatPageHeader: React.FC<ChatPageHeaderProps> = ({
         </div>
       </div>
       <style jsx>{`
-        @media (min-width: 768px) { 
+        @media (min-width: 768px) {
           header {
             height: var(--chat-header-height-desktop);
           }
