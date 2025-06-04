@@ -1,13 +1,11 @@
-// src/app/api/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-// ... (Readable stream import jika belum ada)
 
 const MODEL_ALIASES: Record<string, string> = {
   "ChatNPT 1.0": "deepseek-ai/DeepSeek-V3-0324",
   "ChatNPT 1.0 Think": "deepseek-ai/DeepSeek-R1",
+  "NPT 1.5": "deepseek-ai/DeepSeek-R1-0528",
 };
 
-// Definisikan System Prompt di sini
 const SYSTEM_PROMPT_CHATNPT = "You are ChatNPT, an advanced AI assistant. You are helpful, creative, and friendly. You were created by the OpenGen project.";
 
 export async function POST(request: NextRequest) {
@@ -24,19 +22,14 @@ export async function POST(request: NextRequest) {
     const actualModelId = MODEL_ALIASES[modelAlias] || MODEL_ALIASES["ChatNPT 1.0"];
     console.log("/api/chat: Using model ID:", actualModelId);
 
-    // --- PERUBAHAN DI SINI: Tambahkan System Prompt ---
     const messagesForChutes = [
-      { role: "system", content: SYSTEM_PROMPT_CHATNPT }, // System prompt ditambahkan di awal
-      ...history.map((msg: any) => ({ // Pastikan history memiliki role yang benar (user/assistant)
+      { role: "system", content: SYSTEM_PROMPT_CHATNPT },
+      ...history.map((msg: any) => ({
           role: msg.role === 'ai' ? 'assistant' : msg.role, 
           content: msg.content 
       })),
       { role: "user", content: prompt },
     ];
-    // Jika Anda ingin system prompt hanya ada jika history kosong (awal chat baru dari sisi model)
-    // if (history.length === 0) {
-    //   messagesForChutes.unshift({ role: "system", content: SYSTEM_PROMPT_CHATNPT });
-    // }
 
 
     const chutesApiToken = process.env.CHUTES_API_TOKEN;
@@ -47,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     const chuteRequestBody = {
       model: actualModelId,
-      messages: messagesForChutes, // Gunakan messagesForChutes yang sudah ada system promptnya
+      messages: messagesForChutes,
       stream: true,
       max_tokens: 10000,
       temperature: 0.7,
@@ -93,8 +86,7 @@ export async function POST(request: NextRequest) {
               break;
             }
             const decodedChunk = decoder.decode(value);
-            // console.log("/api/chat: Sending chunk to client:", decodedChunk); // Bisa sangat verbose
-            controller.enqueue(value); // Kirim Uint8Array langsung
+            controller.enqueue(value);
           }
         } catch (error) {
           console.error("/api/chat: Error reading stream from Chutes AI:", error);

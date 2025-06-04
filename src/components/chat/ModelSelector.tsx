@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiChevronDown, FiCpu } from 'react-icons/fi'; // Assuming FiCpu is for model icon
+import { FiChevronDown, FiCpu } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ModelOption {
@@ -10,7 +10,8 @@ interface ModelOption {
 
 const models: ModelOption[] = [
   { alias: "ChatNPT 1.0", id: "deepseek-ai/DeepSeek-V3-0324", description: "Balanced model for general tasks." },
-  { alias: "ChatNPT 1.0 Think", id: "deepseek-ai/DeepSeek-R1", description: "Model with visible reasoning steps." },
+  { alias: "ChatNPT 1.0 Think", id: "deepseek-ai/DeepSeek-R1", description: "Best for Coding, Math and Complex Task." },
+  { alias: "ChatNPT 1.5", id: "deepseek-ai/DeepSeek-R1-0528", description: "Our Best Reasoning Models" },
 ];
 
 interface ModelSelectorProps {

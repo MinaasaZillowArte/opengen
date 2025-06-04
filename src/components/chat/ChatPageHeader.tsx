@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { FiSettings, FiSun, FiMoon, FiCpu, FiMenu } from 'react-icons/fi'; // Added FiMenu
+import { FiSettings, FiSun, FiMoon, FiCpu, FiMenu } from 'react-icons/fi';
 import ModelSelector from './ModelSelector';
 
 interface ChatPageHeaderProps {
@@ -12,11 +12,11 @@ interface ChatPageHeaderProps {
   theme: 'light' | 'dark';
   onThemeChange: () => void;
   onSettingsClick: () => void;
-  onToggleSidebar: () => void; // New prop
+  onToggleSidebar: () => void;
 }
 
-export const CHAT_PAGE_HEADER_HEIGHT_MOBILE = 60; // px
-export const CHAT_PAGE_HEADER_HEIGHT_DESKTOP = 65; // px
+export const CHAT_PAGE_HEADER_HEIGHT_MOBILE = 60;
+export const CHAT_PAGE_HEADER_HEIGHT_DESKTOP = 65;
 
 const ChatPageHeader: React.FC<ChatPageHeaderProps> = ({
   currentModelAlias,
@@ -25,7 +25,7 @@ const ChatPageHeader: React.FC<ChatPageHeaderProps> = ({
   theme,
   onThemeChange,
   onSettingsClick,
-  onToggleSidebar, // New prop
+  onToggleSidebar,
 }) => {
   return (
     <header

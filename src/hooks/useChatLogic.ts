@@ -27,7 +27,7 @@ export interface UseChatLogicReturn {
   isLoading: boolean;
   error: string | null;
   currentModelAlias: string;
-  sendMessage: (prompt: string, userMessageAlreadyAdded?: boolean) => Promise<void>; // Modifikasi di sini
+  sendMessage: (prompt: string, userMessageAlreadyAdded?: boolean) => Promise<void>;
   setCurrentModelAlias: Dispatch<SetStateAction<string>>;
   clearChat: () => void;
   stopGeneration: () => void;
@@ -47,7 +47,6 @@ export function useChatLogic({
 
   const addMessageHelper = useCallback((speaker: 'user' | 'ai', text: string, errorMsg?: string, customId?: string) => {
     setMessages(prev => {
-      // Hindari duplikasi jika ID pesan sudah ada (meskipun kecil kemungkinannya dengan customId)
       if (customId && prev.find(msg => msg.id === customId)) {
         return prev.map(msg => msg.id === customId ? { ...msg, text: msg.text + text, error: errorMsg } : msg);
       }
@@ -69,20 +68,17 @@ export function useChatLogic({
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let currentAiMessageId: string | null = null;
-    // Cari AI message terakhir yang mungkin belum selesai (jika ada error sebelumnya dan dilanjutkan)
     const lastAiMessage = messages.findLast(msg => msg.speaker === 'ai' && !msg.error && msg.text !== "Generation stopped by user.");
-    if (lastAiMessage && messages[messages.length-1].id === lastAiMessage.id && isLoading) { // Pastikan ini AI message terakhir & sedang loading
+    if (lastAiMessage && messages[messages.length-1].id === lastAiMessage.id && isLoading) {
         currentAiMessageId = lastAiMessage.id;
     }
 
 
     let lineBuffer = '';
 
-    if (currentModelAlias === "ChatNPT 1.0 Think") { //
+    if (currentModelAlias === "ChatNPT 1.0 Think") {
       setThinkingSteps([]);
     }
-
-    // setIsLoading(true); // isLoading sudah di-set di sendMessage
 
     try {
       while (true) {
@@ -98,7 +94,6 @@ export function useChatLogic({
 
         const { value, done } = await reader.read();
         if (done) {
-          // Proses sisa buffer jika ada
           if (lineBuffer.trim().startsWith('data:')) {
             const parsedStreamChunks = parseStreamChunk(lineBuffer.trim()); //
             for (const chunk of parsedStreamChunks) {
@@ -175,7 +170,7 @@ export function useChatLogic({
       setIsLoading(false);
       if (reader) reader.releaseLock();
     }
-  }, [currentModelAlias, addMessageHelper, messages, isLoading]); // isLoading ditambahkan
+  }, [currentModelAlias, addMessageHelper, messages, isLoading]);
 
   // Modifikasi sendMessage
   const sendMessage = useCallback(async (prompt: string, userMessageAlreadyAdded: boolean = false) => {
@@ -184,55 +179,31 @@ export function useChatLogic({
     setIsLoading(true);
     setError(null);
 
-    // Pesan pengguna ditambahkan di sini HANYA jika belum ditambahkan oleh pemanggil
     if (!userMessageAlreadyAdded) {
       addMessageHelper('user', prompt);
     }
-    // Jika userMessageAlreadyAdded = true, berarti `messages` state sudah di-update
-    // oleh `setLogicMessages` di page.tsx sebelum memanggil sendMessage ini.
 
-    if (currentModelAlias === "ChatNPT 1.0 Think") { //
+    if (currentModelAlias === "ChatNPT 1.0 Think") {
         setThinkingSteps([]);
     }
 
     abortControllerRef.current = new AbortController();
 
     try {
-      // Ambil `messages` TERKINI dari state untuk membangun history
-      // Karena `addMessageHelper` atau `setMessages` (via `setLogicMessages`) adalah async,
-      // lebih aman membangun history dari state `messages` yang akan di-resolve di render berikutnya,
-      // atau pastikan state `messages` sudah di-update sebelum baris ini.
-      // Untuk keamanan, kita bisa mengkonstruksi history dari `messages` saat ini,
-      // lalu tambahkan prompt pengguna terakhir jika belum ada.
       
-      let historyMessages = [...messages]; // Salin messages saat ini
+      let historyMessages = [...messages];
       if (!userMessageAlreadyAdded) {
-          // Jika pesan user baru saja ditambahkan oleh addMessageHelper di atas,
-          // state messages mungkin belum terupdate di sini.
-          // Maka, tambahkan secara manual ke salinan untuk history.
-          // Ini adalah asumsi bahwa addMessageHelper akan segera dieksekusi.
-          // Alternatifnya, addMessageHelper bisa return ID pesan baru, lalu kita tunggu.
-          // Untuk sekarang, kita asumsikan prompt akan jadi pesan user terakhir di `messages` yang akan datang.
-          // Cara paling aman: `messages` state di-passing ke `sendMessage` atau selalu update state dulu.
-          // Karena `messages` ada di dependency array useCallback, ia akan selalu up-to-date.
       } else {
-          // Jika userMessageAlreadyAdded, berarti `messages` sudah di-set dengan benar dari luar.
       }
-      // Pastikan pesan prompt pengguna terakhir ada di history jika belum
       const lastMessageIsCurrentPromptUser = historyMessages.length > 0 &&
                                          historyMessages[historyMessages.length - 1].speaker === 'user' &&
                                          historyMessages[historyMessages.length - 1].text === prompt;
 
       if (!lastMessageIsCurrentPromptUser && !userMessageAlreadyAdded) {
-          // Jika `addMessageHelper` belum menambahkan prompt ke `historyMessages` (karena sifat async setState)
-          // dan ini bukan kasus dimana pesan sudah ada, tambahkan secara eksplisit ke history.
-          // Ini adalah fallback, idealnya `messages` sudah mengandung prompt ini.
-          // Untuk hook ini, `addMessageHelper` sudah dipanggil jika `!userMessageAlreadyAdded`.
-          // Jadi `messages` akan segera terupdate.
       }
 
 
-      const historyToSend = historyMessages // Gunakan messages yang sudah diupdate dari state
+      const historyToSend = historyMessages
         .filter(msg => !(msg.speaker === 'ai' && msg.error))
         .map(msg => ({ role: msg.speaker === 'user' ? 'user' : ('assistant' as 'user' | 'assistant'), content: msg.text }));
 
@@ -240,7 +211,7 @@ export function useChatLogic({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            prompt, // Prompt tetap dikirim untuk konteks API
+            prompt,
             history: historyToSend,
             modelAlias: currentModelAlias //
         }),
@@ -252,7 +223,7 @@ export function useChatLogic({
         try {
             const errorData = await response.json();
             errorText = errorData.error || errorData.details || errorText;
-        } catch (jsonError) { /* Biarkan errorText default */ }
+        } catch (jsonError) { }
         throw new Error(errorText);
       }
       await processAndSetStream(response.body);
@@ -265,7 +236,6 @@ export function useChatLogic({
         const specificError = e.message || "Failed to get response from AI.";
         setError(specificError);
         const lastMessageIsUser = messages.length > 0 && messages[messages.length-1].speaker === 'user';
-        // Hanya tambahkan bubble error AI jika pesan terakhir adalah dari user dan belum ada respons AI
         if (lastMessageIsUser && (!messages.find(m => m.speaker==='ai' && m.id === messages[messages.length-1].id +'-ai'))) { // Cek sederhana
            addMessageHelper('ai', "", specificError);
         }
@@ -278,7 +248,6 @@ export function useChatLogic({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       console.log("Generation stop requested.");
-      // State error dan isLoading akan diurus oleh processAndSetStream
     }
   }, []);
 

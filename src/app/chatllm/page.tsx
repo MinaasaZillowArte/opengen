@@ -13,12 +13,24 @@ import SettingsModal from '@/components/chat/SettingsModal';
 import Sidebar from '@/components/chat/Sidebar';
 import { useChatLogic, Message, UseChatLogicReturn } from '@/hooks/useChatLogic';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { motion, AnimatePresence } from 'framer-motion'; // Ditambahkan untuk animasi modal
 import { ChatSession } from '@/types/chat'; // Pastikan path ini benar
 
 const defaultTheme = 'light';
 
 const generateUID = () => {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+  let uid = Date.now().toString(36);
+  while (uid.length < 80) {
+    uid += Math.random().toString(36).substring(2);
+  }
+  return uid.substring(0, 80);
+};
+
+// Variasi animasi untuk modal
+const modalVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 20 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" } },
+  exit: { opacity: 0, scale: 0.95, y: 20, transition: { duration: 0.15, ease: "easeIn" } },
 };
 
 function ChatPageContent() {
@@ -32,6 +44,8 @@ function ChatPageContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentActiveChatId, setCurrentActiveChatId] = useState<string | null>(null);
+  const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<ChatSession | null>(null);
 
   const {
     messages,
@@ -285,14 +299,42 @@ function ChatPageContent() {
   }, [currentActiveChatId, messages, currentModelAlias, saveCurrentChatStateToSessions, router, isClient]);
 
   const handleDeleteChat = useCallback((sessionId: string) => {
-    if (window.confirm("Are you sure you want to delete this chat session? This action cannot be undone.")) {
-      setChatSessions(prev => prev.filter(s => s.id !== sessionId));
-      if (sessionId === currentActiveChatId) {
+    const sessionToDelete = chatSessions.find(s => s.id === sessionId);
+    if (sessionToDelete) {
+      setChatToDelete(sessionToDelete);
+      setIsDeleteConfirmModalOpen(true);
+    } else {
+      console.warn(`Session with ID ${sessionId} not found for deletion.`);
+    }
+  }, [chatSessions]);
+
+  const confirmDeleteChat = useCallback(() => {
+    if (chatToDelete) {
+      const deletedChatId = chatToDelete.id;
+      
+      // 1. Perbarui daftar sesi chat
+      setChatSessions(prev => prev.filter(s => s.id !== deletedChatId));
+
+      // 2. Jika chat yang dihapus adalah chat yang aktif, reset state chat dan navigasi
+      if (deletedChatId === currentActiveChatId) {
+        // Bersihkan pesan dan langkah berpikir dari useChatLogic
+        clearLogicChat(); 
+        // Atur ID chat aktif saat ini menjadi null
+        setCurrentActiveChatId(null); 
+        // Navigasi ke halaman chat dasar. useEffect utama akan menangani tampilan "chat baru".
         router.push('/chatllm', { scroll: false });
       }
-    }
-  }, [currentActiveChatId, router, chatSessions]); // Tambahkan chatSessions
 
+      // 3. Tutup modal dan bersihkan state chatToDelete
+      setIsDeleteConfirmModalOpen(false);
+      setChatToDelete(null);
+    }
+  }, [chatToDelete, currentActiveChatId, router, setChatSessions, clearLogicChat, setCurrentActiveChatId]);
+  
+  const cancelDeleteChat = useCallback(() => {
+    setIsDeleteConfirmModalOpen(false);
+    setChatToDelete(null);
+  }, []);
   const handleArchiveChat = useCallback((sessionId: string, isArchived: boolean) => {
     setChatSessions(prev =>
       prev.map(s => (s.id === sessionId ? { ...s, isArchived, timestamp: Date.now() } : s))
@@ -400,6 +442,30 @@ function ChatPageContent() {
         chatMessages={messages} // Dari hook
         onClearAllChats={clearAllLocalChats}
       />
+      {isDeleteConfirmModalOpen && chatToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--overlay-bg)] backdrop-blur-sm p-4">
+          <div className="bg-[var(--card-bg)] p-6 rounded-lg shadow-xl w-full max-w-md text-[var(--text-primary)] border border-[var(--border-color)]">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              Are you sure you want to delete the chat session titled "<strong>{chatToDelete.title}</strong>"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeleteChat}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-[var(--button-bg)] hover:bg-[var(--button-hover-bg)] text-[var(--text-secondary)] border border-[var(--border-color)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteChat}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ErrorBoundary>
   );
 }

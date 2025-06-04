@@ -23,7 +23,7 @@ interface NavGroup {
   label: string;
   icon?: IconType;
   children: (NavLink | NavGroup)[];
-  href?: string; // Optional: if the group label itself is a link
+  href?: string;
 }
 
 type NavItemType = NavLink | NavGroup;
@@ -354,7 +354,6 @@ export default function Navbar() { // Removed unused NavbarProps
           <motion.div
             key="mobileMenu"
             variants={mobileMenuOverlayVariants}
-            initial="hidden"
             animate="visible"
             exit="exit"
             className={`md:hidden fixed top-0 right-0 bottom-0 w-full max-w-xs sm:max-w-sm shadow-2xl z-40 overflow-y-auto
