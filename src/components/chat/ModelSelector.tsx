@@ -4,14 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface ModelOption {
   alias: string;
-  id: string;
   description: string;
 }
 
 const models: ModelOption[] = [
-  { alias: "ChatNPT 1.0", id: "deepseek-ai/DeepSeek-V3-0324", description: "Balanced model for general tasks." },
-  { alias: "ChatNPT 1.0 Think", id: "deepseek-ai/DeepSeek-R1", description: "Best for Coding, Math and Complex Task." },
-  { alias: "ChatNPT 1.5", id: "deepseek-ai/DeepSeek-R1-0528", description: "Our Best Reasoning Models" },
+  { alias: "NPT 1.0", description: "Balanced model for general tasks." },
+  { alias: "NPT 1.0 Think", description: "Best for Coding, Math and Complex Task." },
+  { alias: "NPT 1.5", description: "Our Best Reasoning Models" },
 ];
 
 interface ModelSelectorProps {

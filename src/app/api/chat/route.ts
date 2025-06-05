@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const MODEL_ALIASES: Record<string, string> = {
-  "ChatNPT 1.0": "deepseek-ai/DeepSeek-V3-0324",
-  "ChatNPT 1.0 Think": "deepseek-ai/DeepSeek-R1",
+  "NPT 1.0": "deepseek-ai/DeepSeek-V3-0324",
+  "NPT 1.0 Think": "deepseek-ai/DeepSeek-R1",
   "NPT 1.5": "deepseek-ai/DeepSeek-R1-0528",
 };
 
