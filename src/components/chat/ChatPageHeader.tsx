@@ -46,7 +46,6 @@ const ChatPageHeader: React.FC<ChatPageHeaderProps> = ({
             <FiMenu className="w-5 h-5 md:w-6 md:h-6" />
           </button>
            <div className="flex items-center gap-2 text-[var(--text-primary)]">
-            <FiCpu className="w-6 h-6 text-[var(--color-primary)]" />
             <span className="font-semibold text-lg hidden sm:inline">ChatNPT</span>
           </div>
         </div>

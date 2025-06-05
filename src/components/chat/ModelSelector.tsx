@@ -47,7 +47,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ currentModelAlias, onMode
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
         >
-          <FiCpu className="mr-2 h-5 w-5 text-[var(--color-primary)]" />
           {selectedModel.alias}
           <FiChevronDown className="-mr-1 ml-2 h-5 w-5" />
         </button>

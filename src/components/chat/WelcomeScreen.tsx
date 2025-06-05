@@ -32,7 +32,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSuggestionClick }
       animate="visible"
     >
       <motion.div variants={itemVariants} className="mb-8">
-        <FiCpu className="w-16 h-16 md:w-20 md:h-20 text-[var(--color-primary)] mx-auto" />
+        <img src="/opengen.svg" alt="ChatNPT Logo" className="w-16 h-16 md:w-20 md:h-20 text-[var(--color-primary)] mx-auto" />
         <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mt-4 mb-2">
           ChatNPT Experimental
         </h1>
