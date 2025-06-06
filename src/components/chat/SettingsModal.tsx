@@ -1,4 +1,3 @@
-// src/components/chat/SettingsModal.tsx
 import React, { useState, useEffect } from 'react';
 import { FiX, FiSun, FiMoon, FiType, FiMaximize, FiMinimize, FiShare2, FiDownload, FiTrash2, FiInfo, FiSettings, FiSave, FiGift, FiMail } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -132,7 +131,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             Send message on Enter (Shift+Enter for new line)
                         </label>
                     </div>
-                    {/* --- NEW FEEDBACK BUTTON --- */}
                     <div>
                       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Feedback</label>
                       <a 

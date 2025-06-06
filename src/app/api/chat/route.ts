@@ -11,7 +11,7 @@ const SYSTEM_PROMPT_CHATNPT = "You are ChatNPT, an advanced AI assistant. You ar
 export async function POST(request: NextRequest) {
   console.log("/api/chat: Received request");
   try {
-    const { prompt, history = [], modelAlias = "ChatNPT 1.0" } = await request.json();
+    const { prompt, history = [], modelAlias = "NPT 1.0" } = await request.json();
     console.log("/api/chat: Parsed body:", { prompt, modelAlias, historyCount: history.length });
 
     if (!prompt) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    const actualModelId = MODEL_ALIASES[modelAlias] || MODEL_ALIASES["ChatNPT 1.0"];
+    const actualModelId = MODEL_ALIASES[modelAlias] || MODEL_ALIASES["NPT 1.0"];
     console.log("/api/chat: Using model ID:", actualModelId);
 
     const messagesForChutes = [
