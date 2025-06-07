@@ -125,34 +125,62 @@ export function useChatLogic({
           lineBuffer = lineBuffer.substring(newlineIndex + 1);
 
           if (sseMessageLine.startsWith('data: ')) {
-            const parsedStreamChunks = parseStreamChunk(sseMessageLine); //
-            for (const chunk of parsedStreamChunks) {
-              if (chunk.error) throw new Error(chunk.error);
+            const parsedStreamChunks = parseStreamChunk(sseMessageLine);
+            let accumulatedText = "";
+            let newThinkingStepsBatch: ThinkingStep[] = [];
+            let streamErrorInBatch: string | undefined;
+            let isFinalInBatch = false;
 
+            for (const chunk of parsedStreamChunks) {
+              if (chunk.error) {
+                streamErrorInBatch = chunk.error;
+                isFinalInBatch = true; // Error implies finality for this batch
+                break; 
+              }
+              if (chunk.isFinalChunk) {
+                isFinalInBatch = true;
+              }
               if (chunk.text) {
-                if (currentModelAlias === "ChatNPT 1.0 Think" && chunk.isReasoningStep) { //
-                  setThinkingSteps(prev => [...prev, { id: chunk.id || Date.now().toString(), text: chunk.text! }]);
+                if (currentModelAlias === "ChatNPT 1.0 Think" && chunk.isReasoningStep) {
+                  newThinkingStepsBatch.push({ id: chunk.id || Date.now().toString(), text: chunk.text });
                 } else {
-                  if (!currentAiMessageId) {
-                    const newAiMessageId = Date.now().toString(36) + Math.random().toString(36).substring(2,9);
-                    addMessageHelper('ai', chunk.text!, undefined, newAiMessageId);
-                    currentAiMessageId = newAiMessageId;
-                  } else {
-                    setMessages(prev =>
-                      prev.map(m =>
-                        m.id === currentAiMessageId ? { ...m, text: m.text + chunk.text! } : m
-                      )
-                    );
-                  }
+                  accumulatedText += chunk.text;
                 }
               }
-              
-              if (chunk.isFinalChunk && !currentAiMessageId && messages.length > 0 && messages[messages.length -1]?.speaker !== 'user') {
-                const lastMsg = messages[messages.length -1];
-                if(lastMsg && lastMsg.speaker === 'ai' && !lastMsg.text && !lastMsg.error){
-                    setMessages(prev => prev.map(m => m.id === lastMsg.id ? {...m, error: "Empty response from AI." } : m));
-                }
+            }
+
+            if (streamErrorInBatch) {
+              throw new Error(streamErrorInBatch);
+            }
+
+            if (newThinkingStepsBatch.length > 0) {
+              setThinkingSteps(prev => [...prev, ...newThinkingStepsBatch]);
+            }
+
+            if (accumulatedText) {
+              if (!currentAiMessageId) {
+                const newAiMessageId = Date.now().toString(36) + Math.random().toString(36).substring(2,9);
+                addMessageHelper('ai', accumulatedText, undefined, newAiMessageId);
+                currentAiMessageId = newAiMessageId;
+              } else {
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.id === currentAiMessageId ? { ...m, text: m.text + accumulatedText } : m
+                  )
+                );
               }
+            }
+
+            // Handle empty response if this batch was final and produced no output
+            if (isFinalInBatch && !currentAiMessageId && !accumulatedText && newThinkingStepsBatch.length === 0) {
+              setMessages(prevMessages => {
+                const lastPrevMessage = prevMessages.length > 0 ? prevMessages[prevMessages.length - 1] : null;
+                if (lastPrevMessage && lastPrevMessage.speaker === 'user') {
+                  // If the last message was user, and AI gives an empty final response.
+                  return [...prevMessages, { id: Date.now().toString(36) + Math.random().toString(36).substring(2,9) + "-empty-final", text: "", speaker: 'ai', timestamp: Date.now(), error: "AI response was empty.", modelAliasUsed: currentModelAlias }];
+                }
+                return prevMessages;
+              });
             }
           }
         }
