@@ -1,4 +1,3 @@
-// src/app/chatllm/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
@@ -13,8 +12,8 @@ import SettingsModal from '@/components/chat/SettingsModal';
 import Sidebar from '@/components/chat/Sidebar';
 import { useChatLogic, Message, UseChatLogicReturn } from '@/hooks/useChatLogic';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { motion, AnimatePresence } from 'framer-motion'; // Ditambahkan untuk animasi modal
-import { ChatSession } from '@/types/chat'; // Pastikan path ini benar
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChatSession } from '@/types/chat';
 
 const defaultTheme = 'light';
 
@@ -26,7 +25,6 @@ const generateUID = () => {
   return uid.substring(0, 80);
 };
 
-// Variasi animasi untuk modal
 const modalVariants = {
   hidden: { opacity: 0, scale: 0.95, y: 20 },
   visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" } },
@@ -36,7 +34,6 @@ const modalVariants = {
 function ChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // chatIdFromUrlQuery akan diakses di dalam useEffect setelah isClient true
   
   const [isClient, setIsClient] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(defaultTheme);
@@ -58,12 +55,15 @@ function ChatPageContent() {
     clearChat: clearLogicChat,
     stopGeneration,
     setMessages: setLogicMessages,
+    handleLike,
+    handleDislike,
+    handleNavigateVersion,
+    handleRegenerate,
   }: UseChatLogicReturn = useChatLogic();
 
   const initialLoadProcessedRef = useRef(false);
   const previousChatIdRef = useRef<string | null>(null);
 
-  // --- Deklarasi Callback di Awal ---
   const saveCurrentChatStateToSessions = useCallback((chatIdToSave: string | null, currentMessages: Message[], currentModel: string) => {
     if (chatIdToSave) {
         setChatSessions(prevSessions => {
@@ -80,7 +80,7 @@ function ChatPageContent() {
                     updatedSessions[sessionIndex] = updatedSessionData;
                     return updatedSessions;
                 }
-            } else { // Sesi belum ada di array, mungkin baru dibuat
+            } else {
                 const newSessionFromState: ChatSession = {
                     id: chatIdToSave,
                     title: currentMessages.find(m=>m.speaker==='user')?.text.substring(0,30) || `Chat ${new Date().toLocaleTimeString()}`,
@@ -88,7 +88,6 @@ function ChatPageContent() {
                     timestamp: Date.now(),
                     modelAliasUsed: currentModel,
                 };
-                // Pastikan tidak ada duplikasi ID saat menambahkan
                 if (!prevSessions.find(s => s.id === chatIdToSave)) {
                     return [newSessionFromState, ...prevSessions];
                 }
@@ -96,7 +95,7 @@ function ChatPageContent() {
             return prevSessions;
         });
     }
-  }, [/* setChatSessions adalah stabil, tidak perlu dependensi jika hanya itu */]);
+  }, []);
 
   const handleSendMessage = useCallback(async (prompt: string) => {
     let targetChatId = currentActiveChatId;
@@ -145,12 +144,11 @@ function ChatPageContent() {
 
   }, [currentActiveChatId, currentModelAlias, chatSessions, sendLogicMessage, setLogicMessages, router, clearLogicChat]);
 
-  // --- Theme Management ---
   const applyThemeVariables = useCallback((selectedTheme: string) => {
     if (typeof window === 'undefined') return;
     const root = document.documentElement;
-    const vars = selectedTheme === 'dark' ? { '--bg-primary': '#0f172a', '--bg-secondary': '#1e293b', '--bg-tertiary': '#334155', '--card-bg': '#1e293b', '--accent-bg-light': 'rgba(59, 130, 246, 0.15)', '--text-primary': '#f1f5f9', '--text-secondary': '#cbd5e1', '--text-tertiary': '#94a3b8', '--border-color': '#334155', '--border-color-hover': '#475569', '--button-bg': '#334155', '--button-hover-bg': '#475569', '--color-primary': '#60a5fa', '--color-secondary': '#a78bfa', '--scrollbar-thumb': '#475569', '--scrollbar-track': '#1e293b', '--inline-code-bg': 'rgba(51, 65, 85, 0.5)', '--inline-code-text': '#e2e8f0', '--overlay-bg': 'rgba(15, 23, 42, 0.8)' }
-                                    : { '--bg-primary': '#ffffff', '--bg-secondary': '#f8fafc', '--bg-tertiary': '#f1f5f9', '--card-bg': '#ffffff', '--accent-bg-light': '#e0f2fe', '--text-primary': '#0f172a', '--text-secondary': '#475569', '--text-tertiary': '#64748b', '--border-color': '#e2e8f0', '--border-color-hover': '#cbd5e1', '--button-bg': '#ffffff', '--button-hover-bg': '#f1f5f9', '--color-primary': '#3b82f6', '--color-secondary': '#8b5cf6', '--scrollbar-thumb': '#cbd5e1', '--scrollbar-track': '#f8fafc', '--inline-code-bg': 'rgba(226, 232, 240, 0.5)', '--inline-code-text': '#0f172a', '--overlay-bg': 'rgba(248, 250, 252, 0.8)' };
+    const vars = selectedTheme === 'dark' ? { '--bg-primary': '#0f172a', '--bg-secondary': '#1e293b', '--bg-tertiary': '#334155', '--card-bg': '#1e293b', '--accent-bg-light': 'rgba(59, 130, 246, 0.15)', '--text-primary': '#f1f5f9', '--text-secondary': '#cbd5e1', '--text-tertiary': '#94a3b8', '--border-color': '#334155', '--border-color-hover': '#475569', '--button-bg': '#334155', '--button-hover-bg': '#475569', '--color-primary': '#60a5fa', '--color-secondary': '#a78bfa', '--color-success': '#34d399', '--color-error': '#f43f5e', '--scrollbar-thumb': '#475569', '--scrollbar-track': '#1e293b', '--inline-code-bg': 'rgba(51, 65, 85, 0.5)', '--inline-code-text': '#e2e8f0', '--overlay-bg': 'rgba(15, 23, 42, 0.8)' }
+                                    : { '--bg-primary': '#ffffff', '--bg-secondary': '#f8fafc', '--bg-tertiary': '#f1f5f9', '--card-bg': '#ffffff', '--accent-bg-light': '#e0f2fe', '--text-primary': '#0f172a', '--text-secondary': '#475569', '--text-tertiary': '#64748b', '--border-color': '#e2e8f0', '--border-color-hover': '#cbd5e1', '--button-bg': '#ffffff', '--button-hover-bg': '#f1f5f9', '--color-primary': '#3b82f6', '--color-secondary': '#8b5cf6', '--color-success': '#10b981', '--color-error': '#ef4444', '--scrollbar-thumb': '#cbd5e1', '--scrollbar-track': '#f8fafc', '--inline-code-bg': 'rgba(226, 232, 240, 0.5)', '--inline-code-text': '#0f172a', '--overlay-bg': 'rgba(248, 250, 252, 0.8)' };
     Object.entries(vars).forEach(([key, value]) => { root.style.setProperty(key, value); });
     if (selectedTheme === 'dark') { document.documentElement.classList.add('dark'); } 
     else { document.documentElement.classList.remove('dark'); }
@@ -175,7 +173,6 @@ function ChatPageContent() {
     });
   }, [applyThemeVariables]);
 
-  // --- Chat Session Management & localStorage Sync ---
   useEffect(() => {
     if (isClient) {
       const storedSessions = localStorage.getItem('chatNPT_sessions');
@@ -191,7 +188,6 @@ function ChatPageContent() {
     }
   }, [chatSessions, isClient]);
 
-  // Effect to load chat based on URL query param or set to new chat state
   useEffect(() => {
     if (!isClient || !initialLoadProcessedRef.current) return;
 
@@ -222,7 +218,7 @@ function ChatPageContent() {
                         existingSession.messages[0].text === pendingPrompt
                         ) {
                         localStorage.removeItem('pending_prompt_for_new_chat');
-                        if(pendingModelAlias && pendingModelAlias !== currentModelAlias) { // Gunakan currentModelAlias dari hook
+                        if(pendingModelAlias && pendingModelAlias !== currentModelAlias) {
                             setLogicModelAlias(pendingModelAlias);
                         }
                         sendLogicMessage(pendingPrompt, true); 
@@ -247,7 +243,6 @@ function ChatPageContent() {
 
   }, [searchParams, isClient, chatSessions, router, clearLogicChat, setLogicMessages, setLogicModelAlias, currentActiveChatId, messages, isLoading, currentModelAlias, saveCurrentChatStateToSessions, sendLogicMessage]);
 
-
   useEffect(() => {
     if (isClient && currentActiveChatId && messages.length > 0) {
       const activeSessionInArray = chatSessions.find(s => s.id === currentActiveChatId);
@@ -255,17 +250,14 @@ function ChatPageContent() {
         if (JSON.stringify(activeSessionInArray.messages) !== JSON.stringify(messages)) {
             saveCurrentChatStateToSessions(currentActiveChatId, messages, currentModelAlias);
         }
-      } else if (messages.length > 0) { 
-        // Ini adalah kasus di mana sesi baru dibuat, currentActiveChatId di-set,
-        // dan messages dari useChatLogic (terutama pesan AI pertama) perlu disimpan.
+      } else if (messages.length > 0) {
         saveCurrentChatStateToSessions(currentActiveChatId, messages, currentModelAlias);
       }
     }
   }, [messages, currentActiveChatId, isClient, saveCurrentChatStateToSessions, currentModelAlias, chatSessions]);
 
-
   const handleModelChange = (newAlias: string) => {
-    if (newAlias !== currentModelAlias) { // Gunakan currentModelAlias dari hook
+    if (newAlias !== currentModelAlias) {
       setLogicModelAlias(newAlias);
       if (currentActiveChatId) {
         setChatSessions(prev =>
@@ -277,7 +269,6 @@ function ChatPageContent() {
     }
   };
 
-  // --- Sidebar Handlers (Sebagian besar sama, pastikan dependensi callback benar) ---
   const handleNewChat = useCallback(() => {
     if (currentActiveChatId) {
       saveCurrentChatStateToSessions(currentActiveChatId, messages, currentModelAlias);
@@ -312,29 +303,24 @@ function ChatPageContent() {
     if (chatToDelete) {
       const deletedChatId = chatToDelete.id;
       
-      // 1. Perbarui daftar sesi chat
       setChatSessions(prev => prev.filter(s => s.id !== deletedChatId));
 
-      // 2. Jika chat yang dihapus adalah chat yang aktif, reset state chat dan navigasi
       if (deletedChatId === currentActiveChatId) {
-        // Bersihkan pesan dan langkah berpikir dari useChatLogic
         clearLogicChat(); 
-        // Atur ID chat aktif saat ini menjadi null
         setCurrentActiveChatId(null); 
-        // Navigasi ke halaman chat dasar. useEffect utama akan menangani tampilan "chat baru".
         router.push('/chatllm', { scroll: false });
       }
 
-      // 3. Tutup modal dan bersihkan state chatToDelete
       setIsDeleteConfirmModalOpen(false);
       setChatToDelete(null);
     }
-  }, [chatToDelete, currentActiveChatId, router, setChatSessions, clearLogicChat, setCurrentActiveChatId]);
+  }, [chatToDelete, currentActiveChatId, router, clearLogicChat]);
   
   const cancelDeleteChat = useCallback(() => {
     setIsDeleteConfirmModalOpen(false);
     setChatToDelete(null);
   }, []);
+  
   const handleArchiveChat = useCallback((sessionId: string, isArchived: boolean) => {
     setChatSessions(prev =>
       prev.map(s => (s.id === sessionId ? { ...s, isArchived, timestamp: Date.now() } : s))
@@ -367,7 +353,6 @@ function ChatPageContent() {
     }
   }, [router]);
 
-
   const mainContentPaddingTop = isClient
     ? (window.innerWidth < 768 ? `${CHAT_PAGE_HEADER_HEIGHT_MOBILE}px` : `${CHAT_PAGE_HEADER_HEIGHT_DESKTOP}px`)
     : `${CHAT_PAGE_HEADER_HEIGHT_DESKTOP}px`;
@@ -399,9 +384,9 @@ function ChatPageContent() {
         />
         <div className="flex flex-col flex-grow w-full" style={mainContentStyle}>
           <ChatPageHeader
-            currentModelAlias={currentModelAlias} // Dari hook
+            currentModelAlias={currentModelAlias}
             onModelChange={handleModelChange}
-            isLoading={isLoading} // Dari hook
+            isLoading={isLoading}
             theme={theme}
             onThemeChange={handleThemeChange}
             onSettingsClick={() => setIsSettingsModalOpen(true)}
@@ -413,22 +398,26 @@ function ChatPageContent() {
           >
             <div className="flex flex-col flex-grow w-full overflow-hidden">
               <ChatArea
-                messages={messages} // Dari hook
-                thinkingSteps={thinkingSteps} // Dari hook
+                messages={messages}
+                thinkingSteps={thinkingSteps}
                 isLoading={isLoading && (!messages.length || (messages.length > 0 && messages[messages.length - 1]?.speaker === 'user'))}
-                currentModelAlias={currentModelAlias} // Dari hook
+                currentModelAlias={currentModelAlias}
                 isDarkMode={theme === 'dark'}
                 onPromptSuggestionClick={handleSendMessage}
+                onRegenerate={handleRegenerate}
+                onLike={handleLike}
+                onDislike={handleDislike}
+                onNavigateVersion={handleNavigateVersion}
               />
-              {error && ( // Dari hook
+              {error && (
                 <div className="px-4 py-2 text-center text-red-500 bg-red-500/10 text-xs">
                   Error: {error}
                 </div>
               )}
               <InputArea
                 onSendMessage={handleSendMessage}
-                isLoading={isLoading} // Dari hook
-                onStopGeneration={stopGeneration} // Dari hook
+                isLoading={isLoading}
+                onStopGeneration={stopGeneration}
               />
             </div>
           </main>
@@ -439,7 +428,7 @@ function ChatPageContent() {
         onClose={() => setIsSettingsModalOpen(false)}
         theme={theme}
         onThemeChange={handleThemeChange}
-        chatMessages={messages} // Dari hook
+        chatMessages={messages}
         onClearAllChats={clearAllLocalChats}
       />
       {isDeleteConfirmModalOpen && chatToDelete && (
