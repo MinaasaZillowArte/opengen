@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react';
-import { StreamChunk, parseStreamChunk } from '@/utils/streamParser';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface ProcessedStreamState {
   reasoningSteps: string[];
@@ -14,6 +13,8 @@ export function useStreamProcessor(modelAlias: string) {
     finalAnswer: '',
     isComplete: false,
   });
+  const [isThinking, setIsThinking] = useState(false);
+  const [buffer, setBuffer] = useState('');
 
   const resetProcessor = useCallback(() => {
     setProcessedState({
@@ -22,37 +23,77 @@ export function useStreamProcessor(modelAlias: string) {
       isComplete: false,
       error: undefined,
     });
+    setIsThinking(false);
+    setBuffer('');
   }, []);
 
   const processChunk = useCallback((rawChunk: string) => {
-    setProcessedState(prevState => {
-      const newState = { ...prevState, reasoningSteps: [...prevState.reasoningSteps] };
-      const parsedChunks = parseStreamChunk(rawChunk); // From your utility
+    setBuffer(prev => prev + rawChunk);
+  }, []);
 
-      for (const chunk of parsedChunks) {
-        if (chunk.error) {
-          newState.error = chunk.error;
-          newState.isComplete = true;
-          break;
-        }
-        if (chunk.isFinalChunk) {
-          newState.isComplete = true;
-        }
-        if (chunk.text) {
-          if (modelAlias === "ChatNPT 1.0 Think" && chunk.isReasoningStep) {
-            newState.reasoningSteps.push(chunk.text);
-          } else {
-            newState.finalAnswer += chunk.text;
-          }
-        }
+  useEffect(() => {
+    if (!buffer) return;
+
+    let tempBuffer = buffer;
+    let finalAnswerUpdate = '';
+    let reasoningUpdate: string[] = [];
+    let thinkTagOpened = isThinking;
+
+    const thinkStartTag = '<think>';
+    const thinkEndTag = '</think>';
+
+    let startIndex = tempBuffer.indexOf(thinkStartTag);
+    while (startIndex !== -1) {
+      if (!thinkTagOpened) {
+        finalAnswerUpdate += tempBuffer.substring(0, startIndex);
       }
-      return newState;
-    });
-  }, [modelAlias]);
+      
+      let endIndex = tempBuffer.indexOf(thinkEndTag, startIndex);
+      
+      if (endIndex !== -1) {
+        const reasoning = tempBuffer.substring(startIndex + thinkStartTag.length, endIndex).trim();
+        if (reasoning) {
+          reasoningUpdate.push(reasoning);
+        }
+        tempBuffer = tempBuffer.substring(endIndex + thinkEndTag.length);
+        thinkTagOpened = false;
+      } else {
+        const reasoning = tempBuffer.substring(startIndex + thinkStartTag.length).trim();
+        if (reasoning) {
+          reasoningUpdate.push(reasoning);
+        }
+        tempBuffer = '';
+        thinkTagOpened = true;
+      }
+      startIndex = tempBuffer.indexOf(thinkStartTag);
+    }
+    
+    if (!thinkTagOpened && tempBuffer.length > 0) {
+      finalAnswerUpdate += tempBuffer;
+      tempBuffer = '';
+    }
+
+    if (finalAnswerUpdate.length > 0 || reasoningUpdate.length > 0) {
+       setProcessedState(prev => ({
+        ...prev,
+        finalAnswer: prev.finalAnswer + finalAnswerUpdate,
+        reasoningSteps: [...prev.reasoningSteps, ...reasoningUpdate]
+      }));
+    }
+
+    setBuffer(tempBuffer);
+    setIsThinking(thinkTagOpened);
+    
+  }, [buffer, isThinking]);
+  
+  const markAsComplete = useCallback(() => {
+      setProcessedState(prev => ({ ...prev, isComplete: true }));
+  }, []);
 
   return {
     processedState,
     processChunk,
     resetProcessor,
+    markAsComplete,
   };
 }

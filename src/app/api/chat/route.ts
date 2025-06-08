@@ -52,69 +52,20 @@ export async function POST(request: NextRequest) {
 
     if (!chuteResponse.ok) {
       const errorBody = await chuteResponse.text();
-      return NextResponse.json(
-        { error: `Error from AI service: ${chuteResponse.statusText}`, details: errorBody },
-        { status: chuteResponse.status }
-      );
+      console.error(`Error from Chutes AI: ${chuteResponse.status}`, errorBody);
+      return new NextResponse(errorBody, { status: chuteResponse.status, statusText: chuteResponse.statusText });
     }
 
     if (!chuteResponse.body) {
       return NextResponse.json({ error: "No response body from AI service." }, { status: 500 });
     }
     
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        const reader = chuteResponse.body!.getReader();
-        let buffer = '';
-
-        function pushToController(line: string) {
-            if (line.startsWith('data:')) {
-                const data = line.substring(5).trim();
-                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-            }
-        }
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                if(buffer.length > 0) {
-                   pushToController(buffer);
-                }
-                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                break;
-            }
-            
-            buffer += decoder.decode(value, { stream: true });
-            let EOL_index;
-            
-            while ((EOL_index = buffer.indexOf('\n')) >= 0) {
-                const line = buffer.substring(0, EOL_index).trim();
-                buffer = buffer.substring(EOL_index + 1);
-                if (line) {
-                   pushToController(line);
-                }
-            }
-          }
-        } catch (error) {
-          console.error("/api/chat: Error reading stream from Chutes AI:", error);
-          controller.error(error);
-        } finally {
-          controller.close();
-          reader.releaseLock();
-        }
-      }
-    });
-
-    return new Response(readableStream, {
-      headers: { 
-          'Content-Type': 'text/event-stream; charset=utf-8',
-          'Connection': 'keep-alive',
-          'Cache-Control': 'no-cache, no-transform',
-          'X-Accel-Buffering': 'no',
+    return new Response(chuteResponse.body, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Accel-Buffering': 'no',
       },
     });
 

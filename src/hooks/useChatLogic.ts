@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, Dispatch, SetStateAction, useEffect } from 'react';
-import { parseStreamChunk } from '@/utils/streamParser';
 
 export interface MessageVersion {
   text: string;
@@ -18,7 +17,6 @@ export interface Message {
   activeVersion?: number;
   feedback?: 'liked' | 'disliked';
 }
-
 
 export interface ThinkingStep {
   id: string;
@@ -58,11 +56,9 @@ const getFriendlyErrorMessage = (errorText: string): string => {
             return errorJson.message;
         }
     } catch (e) {
-        // Not a JSON error, return as is or a generic message
     }
     return errorText || "An unexpected error occurred.";
 };
-
 
 export function useChatLogic({
   initialMessages = [],
@@ -93,45 +89,44 @@ export function useChatLogic({
 
       if (existingMsgIndex !== -1) {
         const updatedMessages = [...prev];
-        const oldMsg = updatedMessages[existingMsgIndex];
-        let newMsg: Message;
-
+        let oldMsg = updatedMessages[existingMsgIndex];
+        
         if (isRegeneration && isFirstChunk) {
-          const newVersion: MessageVersion = {
-            text: textChunk,
-            modelAliasUsed: currentModelAliasRef.current,
-            timestamp: Date.now(),
-          };
-          const existingVersions = oldMsg.versions || [{ text: oldMsg.text, modelAliasUsed: oldMsg.modelAliasUsed || defaultModelAlias, timestamp: oldMsg.timestamp || Date.now() }];
-          
-          newMsg = {
-              ...oldMsg,
-              versions: [...existingVersions, newVersion],
-              activeVersion: existingVersions.length,
-              text: newVersion.text,
-              modelAliasUsed: newVersion.modelAliasUsed,
-              error: undefined,
-              feedback: undefined,
-          };
+            const newVersion: MessageVersion = {
+                text: textChunk,
+                modelAliasUsed: currentModelAliasRef.current,
+                timestamp: Date.now(),
+            };
+            const existingVersions = oldMsg.versions || [{ text: oldMsg.text, modelAliasUsed: oldMsg.modelAliasUsed || defaultModelAlias, timestamp: oldMsg.timestamp || Date.now() }];
+            
+            const newMsg: Message = {
+                ...oldMsg,
+                versions: [...existingVersions, newVersion],
+                activeVersion: existingVersions.length,
+                text: newVersion.text,
+                modelAliasUsed: newVersion.modelAliasUsed,
+                error: undefined,
+                feedback: undefined,
+            };
+            updatedMessages[existingMsgIndex] = newMsg;
         } else {
-          newMsg = { ...oldMsg };
-          const currentActiveVersionIdx = newMsg.activeVersion ?? 0;
-          const newVersions = [...(newMsg.versions || [])];
-          
-          if (newVersions[currentActiveVersionIdx]) {
-              const updatedVersion = { ...newVersions[currentActiveVersionIdx] };
-              updatedVersion.text += textChunk;
-              newVersions[currentActiveVersionIdx] = updatedVersion;
+            const newMsg = { ...oldMsg };
+            const currentActiveVersionIdx = newMsg.activeVersion ?? (newMsg.versions ? newMsg.versions.length - 1 : 0);
+            const newVersions = [...(newMsg.versions || [])];
 
-              newMsg.versions = newVersions;
-              newMsg.text = updatedVersion.text;
-          }
-          
-          if (isError) {
-              newMsg.error = errorMessage;
-          }
+            if (newVersions[currentActiveVersionIdx]) {
+                const updatedVersion = { ...newVersions[currentActiveVersionIdx] };
+                updatedVersion.text += textChunk;
+                newVersions[currentActiveVersionIdx] = updatedVersion;
+                newMsg.versions = newVersions;
+            }
+            newMsg.text += textChunk;
+            
+            if (isError) {
+                newMsg.error = errorMessage;
+            }
+            updatedMessages[existingMsgIndex] = newMsg;
         }
-        updatedMessages[existingMsgIndex] = newMsg;
         return updatedMessages;
 
       } else if (isFirstChunk) {
@@ -156,6 +151,21 @@ export function useChatLogic({
       return prev;
     });
   }, [defaultModelAlias]);
+  
+  const addOrUpdateThinkingSteps = useCallback((textChunk: string) => {
+      setThinkingSteps(prev => {
+          if (prev.length === 0) {
+              return [{ id: 'thinking-1', text: textChunk }];
+          }
+          const newSteps = [...prev];
+          const lastStepIndex = newSteps.length - 1;
+          newSteps[lastStepIndex] = {
+              ...newSteps[lastStepIndex],
+              text: newSteps[lastStepIndex].text + textChunk,
+          };
+          return newSteps;
+      });
+  }, []);
 
   const processAndSetStream = useCallback(async (
     stream: ReadableStream<Uint8Array>,
@@ -165,64 +175,75 @@ export function useChatLogic({
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let isFirstChunk = true;
-    let lineBuffer = '';
+    let sseBuffer = '';
+    let contentBuffer = '';
+    let isThinking = false;
+    
+    const useReasoning = currentModelAliasRef.current.includes("Think") || currentModelAliasRef.current.includes("1.5");
 
-    if (currentModelAlias === "ChatNPT 1.0 Think") {
-      setThinkingSteps([]);
-    }
+    const thinkStartTag = '<think>';
+    const thinkEndTag = '</think>';
 
     try {
       while (true) {
         if (abortControllerRef.current?.signal.aborted) {
-            console.log("Stream reading aborted by user.");
-            setMessages(prev => prev.map(m => m.id === messageIdToUpdate
-                ? { ...m, error: "aborted", text: m.text || "Generation stopped." }
-                : m
-            ));
+            setMessages(prev => prev.map(m => m.id === messageIdToUpdate ? { ...m, error: "aborted", text: m.text || "Generation stopped." } : m));
             break;
         }
 
         const { value, done } = await reader.read();
-        if (done) {
-            if (lineBuffer.startsWith('data:')) {
-                const parsedChunks = parseStreamChunk(lineBuffer);
-                 for (const chunk of parsedChunks) {
-                    if (chunk.text) {
-                        addOrUpdateAiMessage(messageIdToUpdate, chunk.text, isFirstChunk, false, undefined, isRegeneration);
-                        if (isFirstChunk) isFirstChunk = false;
-                    }
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
+
+        for(const line of lines) {
+            if (line.trim().startsWith('data: ')) {
+                const jsonString = line.trim().substring(6);
+                if (jsonString === '[DONE]') continue;
+                try {
+                    const parsed = JSON.parse(jsonString);
+                    contentBuffer += parsed.choices?.[0]?.delta?.content || '';
+                } catch (e) {
+                    console.warn("Failed to parse stream JSON:", jsonString, e);
                 }
             }
-            break;
         }
 
-        const decodedHttpChunk = decoder.decode(value, { stream: true });
-        lineBuffer += decodedHttpChunk;
+        if (useReasoning) {
+            while (true) {
+                const startTagIndex = !isThinking ? contentBuffer.indexOf(thinkStartTag) : -1;
+                const endTagIndex = isThinking ? contentBuffer.indexOf(thinkEndTag) : -1;
 
-        let newlineIndex;
-        while ((newlineIndex = lineBuffer.indexOf('\n')) >= 0) {
-            const sseMessageLine = lineBuffer.substring(0, newlineIndex).trim();
-            lineBuffer = lineBuffer.substring(newlineIndex + 1);
-
-            if (sseMessageLine.startsWith('data:')) {
-                const parsedStreamChunks = parseStreamChunk(sseMessageLine);
-                for (const chunk of parsedStreamChunks) {
-                    if (chunk.error) throw new Error(chunk.error);
-
-                    if (chunk.text) {
-                        if (currentModelAlias === "ChatNPT 1.0 Think" && chunk.isReasoningStep) {
-                            setThinkingSteps(prev => [...prev, { id: chunk.id, text: chunk.text! }]);
-                        } else {
-                            addOrUpdateAiMessage(messageIdToUpdate, chunk.text, isFirstChunk, false, undefined, isRegeneration);
-                            if (isFirstChunk) isFirstChunk = false;
-                        }
+                if (!isThinking && startTagIndex !== -1) {
+                    const normalPart = contentBuffer.substring(0, startTagIndex);
+                    if (normalPart) {
+                        addOrUpdateAiMessage(messageIdToUpdate, normalPart, isFirstChunk, false, undefined, isRegeneration);
+                        if(isFirstChunk) isFirstChunk = false;
                     }
-
-                    if (chunk.isFinalChunk && isFirstChunk) {
-                        addOrUpdateAiMessage(messageIdToUpdate, "", isFirstChunk, true, "AI response was empty.", isRegeneration);
-                    }
+                    contentBuffer = contentBuffer.substring(startTagIndex + thinkStartTag.length);
+                    isThinking = true;
+                } else if (isThinking && endTagIndex !== -1) {
+                    const thinkingPart = contentBuffer.substring(0, endTagIndex);
+                    if (thinkingPart) addOrUpdateThinkingSteps(thinkingPart);
+                    contentBuffer = contentBuffer.substring(endTagIndex + thinkEndTag.length);
+                    isThinking = false;
+                } else {
+                    break; 
                 }
             }
+        }
+
+        if (contentBuffer) {
+            if (isThinking) {
+                addOrUpdateThinkingSteps(contentBuffer);
+            } else {
+                addOrUpdateAiMessage(messageIdToUpdate, contentBuffer, isFirstChunk, false, undefined, isRegeneration);
+                if(isFirstChunk) isFirstChunk = false;
+            }
+            contentBuffer = '';
         }
       }
     } catch (e: any) {
@@ -234,13 +255,15 @@ export function useChatLogic({
       setIsLoading(false);
       if (reader) reader.releaseLock();
     }
-  }, [currentModelAlias, addOrUpdateAiMessage]);
-
+  }, [addOrUpdateAiMessage, addOrUpdateThinkingSteps]);
+  
   const sendMessage = useCallback(async (prompt: string, userMessageAlreadyAdded: boolean = false, regeneratedMessageId?: string) => {
     const isRegeneration = !!regeneratedMessageId;
     let historyToSend: Message[];
     let promptForApi: string;
     let messageIdToUpdate: string;
+
+    setThinkingSteps([]);
 
     if (isRegeneration) {
         const regeneratedMsgIndex = messages.findIndex(m => m.id === regeneratedMessageId);
@@ -251,6 +274,15 @@ export function useChatLogic({
         historyToSend = messages.slice(0, regeneratedMsgIndex - 1);
         promptForApi = messages[regeneratedMsgIndex - 1].text;
         messageIdToUpdate = regeneratedMessageId;
+
+        setMessages(prev =>
+            prev.map(msg =>
+                msg.id === regeneratedMessageId
+                ? { ...msg, text: '', error: undefined, feedback: undefined }
+                : msg
+            )
+        );
+
     } else {
         if (!prompt.trim() || isLoading) return;
         
@@ -270,12 +302,8 @@ export function useChatLogic({
         messageIdToUpdate = Date.now().toString(36) + Math.random().toString(36).substring(2,9) + "-ai";
     }
 
-
     setIsLoading(true);
     setError(null);
-    if (currentModelAlias === "ChatNPT 1.0 Think") {
-        setThinkingSteps([]);
-    }
     abortControllerRef.current = new AbortController();
 
     try {
@@ -349,9 +377,6 @@ export function useChatLogic({
     
     setIsLoading(true);
     setError(null);
-    if (currentModelAlias === "ChatNPT 1.0 Think") {
-        setThinkingSteps([]);
-    }
     abortControllerRef.current = new AbortController();
 
     const sendEditedRequest = async () => {
@@ -397,7 +422,6 @@ export function useChatLogic({
     sendEditedRequest();
 
   }, [messages, isLoading, currentModelAlias, addOrUpdateAiMessage, processAndSetStream]);
-
 
   const handleLike = useCallback((messageId: string) => {
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'liked' ? undefined : 'liked' } : m));
