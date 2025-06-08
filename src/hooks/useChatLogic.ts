@@ -1,5 +1,5 @@
 // src/hooks/useChatLogic.ts
-import { useState, useCallback, useRef, Dispatch, SetStateAction } from 'react';
+import { useState, useCallback, useRef, Dispatch, SetStateAction, useEffect } from 'react';
 import { parseStreamChunk } from '@/utils/streamParser';
 
 export interface MessageVersion {
@@ -57,8 +57,14 @@ export function useChatLogic({
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentModelAlias, setCurrentModelAlias] = useState<string>(defaultModelAlias);
+  const currentModelAliasRef = useRef(currentModelAlias);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    currentModelAliasRef.current = currentModelAlias;
+  }, [currentModelAlias]);
 
   const addOrUpdateAiMessage = useCallback((
     id: string,
@@ -79,7 +85,7 @@ export function useChatLogic({
         if (isRegeneration && isFirstChunk) {
           const newVersion: MessageVersion = {
             text: textChunk,
-            modelAliasUsed: currentModelAlias,
+            modelAliasUsed: currentModelAliasRef.current,
             timestamp: Date.now(),
           };
           const existingVersions = oldMsg.versions || [{ text: oldMsg.text, modelAliasUsed: oldMsg.modelAliasUsed || defaultModelAlias, timestamp: oldMsg.timestamp || Date.now() }];
@@ -117,7 +123,7 @@ export function useChatLogic({
       } else if (isFirstChunk) {
         const newVersion: MessageVersion = {
           text: textChunk,
-          modelAliasUsed: currentModelAlias,
+          modelAliasUsed: currentModelAliasRef.current,
           timestamp: Date.now(),
         };
         const newAiMessage: Message = {
@@ -125,7 +131,7 @@ export function useChatLogic({
           speaker: 'ai',
           text: textChunk,
           timestamp: newVersion.timestamp,
-          modelAliasUsed: currentModelAlias,
+          modelAliasUsed: currentModelAliasRef.current,
           versions: [newVersion],
           activeVersion: 0,
           error: isError ? errorMessage : undefined,
@@ -135,7 +141,7 @@ export function useChatLogic({
 
       return prev;
     });
-  }, [currentModelAlias, defaultModelAlias]);
+  }, [defaultModelAlias]);
 
   const processAndSetStream = useCallback(async (
     stream: ReadableStream<Uint8Array>,

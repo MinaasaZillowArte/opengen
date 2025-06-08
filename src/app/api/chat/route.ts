@@ -6,21 +6,23 @@ const MODEL_ALIASES: Record<string, string> = {
   "NPT 1.5": "deepseek-ai/DeepSeek-R1-0528",
 };
 
-const SYSTEM_PROMPT_CHATNPT = "You are ChatNPT, an advanced AI assistant. You are helpful, creative, and friendly. You were created by the OpenGen project.";
+const SYSTEM_PROMPT_CHATNPT = "You are ChatNPT, an advanced AI assistant created by the OpenGen project. You are helpful, creative, and friendly.";
 
 export async function POST(request: NextRequest) {
-  console.log("/api/chat: Received request");
   try {
     const { prompt, history = [], modelAlias = "NPT 1.0" } = await request.json();
-    console.log("/api/chat: Parsed body:", { prompt, modelAlias, historyCount: history.length });
 
     if (!prompt) {
-      console.error("/api/chat: Prompt is required");
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
     const actualModelId = MODEL_ALIASES[modelAlias] || MODEL_ALIASES["NPT 1.0"];
-    console.log("/api/chat: Using model ID:", actualModelId);
+    const chutesApiToken = process.env.CHUTES_API_TOKEN;
+
+    if (!chutesApiToken) {
+      console.error("/api/chat: CHUTES_API_TOKEN is not set.");
+      return NextResponse.json({ error: "Server configuration error: Missing API token." }, { status: 500 });
+    }
 
     const messagesForChutes = [
       { role: "system", content: SYSTEM_PROMPT_CHATNPT },
@@ -31,13 +33,6 @@ export async function POST(request: NextRequest) {
       { role: "user", content: prompt },
     ];
 
-
-    const chutesApiToken = process.env.CHUTES_API_TOKEN;
-    if (!chutesApiToken) {
-      console.error("/api/chat: CHUTES_API_TOKEN is not set.");
-      return NextResponse.json({ error: "Server configuration error: Missing API token." }, { status: 500 });
-    }
-
     const chuteRequestBody = {
       model: actualModelId,
       messages: messagesForChutes,
@@ -45,8 +40,6 @@ export async function POST(request: NextRequest) {
       max_tokens: 10000,
       temperature: 0.7,
     };
-
-    console.log("/api/chat: Sending to Chutes AI:", JSON.stringify(chuteRequestBody, null, 2));
 
     const chuteResponse = await fetch("https://llm.chutes.ai/v1/chat/completions", {
       method: "POST",
@@ -56,12 +49,9 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify(chuteRequestBody),
     });
-    
-    console.log("/api/chat: Chutes AI response status:", chuteResponse.status);
 
     if (!chuteResponse.ok) {
       const errorBody = await chuteResponse.text();
-      console.error(`/api/chat: Chutes AI Error (${chuteResponse.status}): ${errorBody}`);
       return NextResponse.json(
         { error: `Error from AI service: ${chuteResponse.statusText}`, details: errorBody },
         { status: chuteResponse.status }
@@ -69,30 +59,50 @@ export async function POST(request: NextRequest) {
     }
 
     if (!chuteResponse.body) {
-      console.error("/api/chat: No response body from AI service.");
       return NextResponse.json({ error: "No response body from AI service." }, { status: 500 });
     }
-
+    
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    
     const readableStream = new ReadableStream({
       async start(controller) {
         const reader = chuteResponse.body!.getReader();
-        const decoder = new TextDecoder();
-        console.log("/api/chat: Starting to stream response to client.");
+        let buffer = '';
+
+        function pushToController(line: string) {
+            if (line.startsWith('data:')) {
+                const data = line.substring(5).trim();
+                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            }
+        }
+
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              console.log("/api/chat: Stream from Chutes AI finished.");
-              break;
+                if(buffer.length > 0) {
+                   pushToController(buffer);
+                }
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                break;
             }
-            const decodedChunk = decoder.decode(value);
-            controller.enqueue(value);
+            
+            buffer += decoder.decode(value, { stream: true });
+            let EOL_index;
+            
+            while ((EOL_index = buffer.indexOf('\n')) >= 0) {
+                const line = buffer.substring(0, EOL_index).trim();
+                buffer = buffer.substring(EOL_index + 1);
+                if (line) {
+                   pushToController(line);
+                }
+            }
           }
         } catch (error) {
           console.error("/api/chat: Error reading stream from Chutes AI:", error);
           controller.error(error);
         } finally {
-          console.log("/api/chat: Closing stream to client.");
           controller.close();
           reader.releaseLock();
         }
@@ -100,7 +110,12 @@ export async function POST(request: NextRequest) {
     });
 
     return new Response(readableStream, {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }, 
+      headers: { 
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+      },
     });
 
   } catch (error: any) {

@@ -7,10 +7,6 @@ import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
-
-// Import KaTeX CSS
-import 'katex/dist/katex.min.css';
-
 import { Message } from '@/hooks/useChatLogic';
 
 interface MessageBubbleProps {
@@ -18,7 +14,7 @@ interface MessageBubbleProps {
     isDarkMode: boolean;
     isLastMessage: boolean;
     isStreamingAi: boolean;
-  }
+}
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) => {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
@@ -30,8 +26,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
     }).catch(err => console.error("Failed to copy:", err));
   }, []);
 
+  const processTextForKatex = (text: string): string => {
+    if (!text) return '';
+    let processedText = text.replace(/\\\(/g, '$').replace(/\\\)/g, '$');
+    processedText = processedText.replace(/\\\[/g, '$$').replace(/\\\]/g, '$$');
+    return processedText;
+  };
+
   const isUser = message.speaker === 'user';
   const codeTheme = isDarkMode ? oneDark : oneLight;
+  const textToRender = processTextForKatex(message.text || (message.error ? '' : '\u200B'));
 
   const bubbleVariants = {
     hidden: { opacity: 0, y: 10, scale: 0.98 },
@@ -52,14 +56,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
         </div>
       )}
       <div
-        className={`relative group/bubble max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl px-4 py-3 rounded-xl shadow-md prose prose-sm dark:prose-invert prose-p:my-2 prose-headings:my-3 prose-li:my-0.5 prose-blockquote:my-2 prose-pre:p-0 prose-pre:bg-transparent
+        className={`message-content relative group/bubble max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl px-4 py-3 rounded-xl shadow-md
                     ${
-                      isUser ? 'bg-[var(--color-primary)] text-white rounded-br-none prose-strong:text-white prose-code:text-white'
+                      isUser ? 'bg-[var(--color-primary)] text-white rounded-br-none'
                               : 'bg-[var(--card-bg)] text-[var(--text-primary)] rounded-bl-none border border-[var(--border-color)]'
                     }
                     ${message.feedback === 'liked' ? 'border-green-500/50' : ''}
                     ${message.feedback === 'disliked' ? 'border-red-500/50' : ''}
-                    prose-code:bg-[var(--inline-code-bg)] prose-code:text-[var(--inline-code-text)] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
                     ${message.error ? 'border-red-500/50 bg-red-500/10' : ''}
                   `}
       >
@@ -100,7 +103,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
                   </button>
                 </div>
               ) : (
-                <code {...rest} className={className} ref={ref}>
+                <code {...rest} className={`inline-code ${className}`} ref={ref}>
                   {children}
                 </code>
               );
@@ -110,7 +113,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
             td: ({node, ...props}) => <td className="border border-[var(--border-color)] px-2 py-1" {...props} />,
           }}
         >
-          {message.text || (message.error ? '' : '\u200B')}
+          {textToRender}
         </ReactMarkdown>
       </div>
       {isUser && (
