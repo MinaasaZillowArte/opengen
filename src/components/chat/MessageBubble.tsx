@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '@/hooks/useChatLogic';
 
 interface MessageBubbleProps {
@@ -34,7 +34,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
   };
 
   const isUser = message.speaker === 'user';
-  const codeTheme = isDarkMode ? oneDark : oneLight;
   const textToRender = processTextForKatex(message.text || (message.error ? '' : '\u200B'));
 
   const bubbleVariants = {
@@ -83,24 +82,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
               const codeBlockId = `code-${message.id}-${node?.position?.start.line}`;
 
               return match ? (
-                <div className="relative group/codeblock my-2">
+                <div className="my-2 bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                  <div className="flex justify-between items-center px-4 py-1.5 bg-gray-800 text-xs text-gray-400">
+                    <span>{match[1]}</span>
+                    <button
+                      onClick={() => handleCopyCode(codeText, codeBlockId)}
+                      className="flex items-center gap-1.5 hover:text-white transition-colors"
+                      title={copiedStates[codeBlockId] ? "Copied!" : "Copy code"}
+                    >
+                      {copiedStates[codeBlockId] ? <FiCheck size={14} /> : <FiCopy size={14} />}
+                      {copiedStates[codeBlockId] ? "Copied" : "Copy code"}
+                    </button>
+                  </div>
                   <SyntaxHighlighter
                     {...rest}
-                    style={codeTheme}
+                    style={oneDark}
                     language={match[1]}
                     PreTag="div"
-                    className="!bg-[var(--code-bg)] !p-3 !text-xs rounded-md scrollbar-thin scrollbar-thumb-[var(--scrollbar-thumb)] scrollbar-track-[var(--scrollbar-track)]"
+                    className="!p-4 !text-xs !bg-transparent scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
                     showLineNumbers
                   >
                     {codeText}
                   </SyntaxHighlighter>
-                  <button
-                    onClick={() => handleCopyCode(codeText, codeBlockId)}
-                    className="absolute top-2 right-2 p-1.5 bg-[var(--bg-tertiary)]/80 rounded opacity-0 group-hover/codeblock:opacity-100 transition-opacity text-[var(--text-secondary)] hover:text-[var(--color-primary)] backdrop-blur-sm"
-                    title={copiedStates[codeBlockId] ? "Copied!" : "Copy code"}
-                  >
-                    {copiedStates[codeBlockId] ? <FiCheck className="w-3.5 h-3.5" /> : <FiCopy className="w-3.5 h-3.5" />}
-                  </button>
+                    <p className="px-4 py-2 text-xs text-gray-500 bg-gray-800 border-t border-gray-700">
+                      AI-generated code. Review before use.
+                    </p>
                 </div>
               ) : (
                 <code {...rest} className={`inline-code ${className}`} ref={ref}>

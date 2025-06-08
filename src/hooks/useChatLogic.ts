@@ -1,4 +1,3 @@
-// src/hooks/useChatLogic.ts
 import { useState, useCallback, useRef, Dispatch, SetStateAction, useEffect } from 'react';
 import { parseStreamChunk } from '@/utils/streamParser';
 
@@ -49,6 +48,22 @@ export interface UseChatLogicReturn {
   handleEditSubmit: (messageId: string, newText: string) => void;
 }
 
+const getFriendlyErrorMessage = (errorText: string): string => {
+    try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) {
+            if (errorJson.retryAfter) {
+                return `${errorJson.message} Please try again in ${errorJson.retryAfter} seconds.`;
+            }
+            return errorJson.message;
+        }
+    } catch (e) {
+        // Not a JSON error, return as is or a generic message
+    }
+    return errorText || "An unexpected error occurred.";
+};
+
+
 export function useChatLogic({
   initialMessages = [],
   defaultModelAlias = "ChatNPT 1.0",
@@ -61,7 +76,6 @@ export function useChatLogic({
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Keep ref in sync with state
   useEffect(() => {
     currentModelAliasRef.current = currentModelAlias;
   }, [currentModelAlias]);
@@ -213,7 +227,7 @@ export function useChatLogic({
       }
     } catch (e: any) {
       console.error("Stream processing error:", e);
-      const errorMessage = e.message || "Stream processing failed";
+      const errorMessage = getFriendlyErrorMessage(e.message);
       addOrUpdateAiMessage(messageIdToUpdate, "", true, true, errorMessage, isRegeneration);
       setError("Error processing AI response: " + errorMessage);
     } finally {
@@ -274,13 +288,15 @@ export function useChatLogic({
 
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-Internal-API-Token': process.env.NEXT_PUBLIC_INTERNAL_API_TOKEN || '',
+        },
         body: JSON.stringify({
             prompt: promptForApi,
             history: apiHistory,
             modelAlias: currentModelAlias,
         }),
-        // --- PERBAIKAN ERROR DI SINI ---
         signal: abortControllerRef.current?.signal,
       });
 
@@ -294,7 +310,7 @@ export function useChatLogic({
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         console.error("Error sending message:", e);
-        const specificError = e.message || "Failed to get response from AI.";
+        const specificError = getFriendlyErrorMessage(e.message);
         setError(specificError);
         addOrUpdateAiMessage(messageIdToUpdate, "", true, true, specificError, isRegeneration);
       }
@@ -349,13 +365,15 @@ export function useChatLogic({
             
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Internal-API-Token': process.env.NEXT_PUBLIC_INTERNAL_API_TOKEN || '',
+                },
                 body: JSON.stringify({
                     prompt: promptForApi,
                     history: apiHistory,
                     modelAlias: currentModelAlias,
                 }),
-                // --- PERBAIKAN ERROR DI SINI JUGA ---
                 signal: abortControllerRef.current?.signal,
             });
 
@@ -368,7 +386,7 @@ export function useChatLogic({
 
         } catch (e: any) {
             if (e.name !== 'AbortError') {
-                const specificError = e.message || "Failed to get response from AI after editing.";
+                const specificError = getFriendlyErrorMessage(e.message);
                 setError(specificError);
                 addOrUpdateAiMessage(messageIdToUpdate, "", true, true, specificError, false);
             }
