@@ -4,18 +4,20 @@ export interface MessageVersion {
   text: string;
   modelAliasUsed: string;
   timestamp: number;
+  thinkingSteps?: ThinkingStep[]; // add this line
 }
 
 export interface Message {
   id: string;
   text: string;
-  speaker: 'user' | 'ai';
+  speaker: 'user' | 'ai' | 'thinking'; // add 'thinking' as valid
   timestamp?: number;
   error?: string;
   modelAliasUsed?: string;
   versions?: MessageVersion[];
   activeVersion?: number;
   feedback?: 'liked' | 'disliked';
+  thinkingSteps?: ThinkingStep[];
 }
 
 export interface ThinkingStep {
@@ -62,7 +64,7 @@ const getFriendlyErrorMessage = (errorText: string): string => {
 
 export function useChatLogic({
   initialMessages = [],
-  defaultModelAlias = "ChatNPT 1.0",
+  defaultModelAlias = "NPT 1.0",
 }: UseChatLogicParams = {}): UseChatLogicReturn {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
@@ -82,58 +84,62 @@ export function useChatLogic({
     isFirstChunk: boolean,
     isError?: boolean,
     errorMessage?: string,
-    isRegeneration: boolean = false
+    isRegeneration: boolean = false,
+    finalThinkingSteps?: ThinkingStep[],
   ) => {
     setMessages(prev => {
       const existingMsgIndex = prev.findIndex(msg => msg.id === id);
-
       if (existingMsgIndex !== -1) {
         const updatedMessages = [...prev];
         let oldMsg = updatedMessages[existingMsgIndex];
-        
         if (isRegeneration && isFirstChunk) {
-            const newVersion: MessageVersion = {
-                text: textChunk,
-                modelAliasUsed: currentModelAliasRef.current,
-                timestamp: Date.now(),
-            };
-            const existingVersions = oldMsg.versions || [{ text: oldMsg.text, modelAliasUsed: oldMsg.modelAliasUsed || defaultModelAlias, timestamp: oldMsg.timestamp || Date.now() }];
-            
-            const newMsg: Message = {
-                ...oldMsg,
-                versions: [...existingVersions, newVersion],
-                activeVersion: existingVersions.length,
-                text: newVersion.text,
-                modelAliasUsed: newVersion.modelAliasUsed,
-                error: undefined,
-                feedback: undefined,
-            };
-            updatedMessages[existingMsgIndex] = newMsg;
+          const newVersion: MessageVersion = {
+            text: textChunk,
+            modelAliasUsed: currentModelAliasRef.current,
+            timestamp: Date.now(),
+            thinkingSteps: finalThinkingSteps,
+          };
+          // Do not touch previous versions' thinkingSteps
+          const existingVersions = (oldMsg.versions && oldMsg.versions.map(v => ({ ...v }))) || [{ text: oldMsg.text, modelAliasUsed: oldMsg.modelAliasUsed || defaultModelAlias, timestamp: oldMsg.timestamp || Date.now(), thinkingSteps: oldMsg.thinkingSteps }];
+          const newMsg: Message = {
+            ...oldMsg,
+            versions: [...existingVersions, newVersion],
+            activeVersion: existingVersions.length,
+            text: newVersion.text,
+            modelAliasUsed: newVersion.modelAliasUsed,
+            error: undefined,
+            feedback: undefined,
+            thinkingSteps: finalThinkingSteps,
+          };
+          updatedMessages[existingMsgIndex] = newMsg;
         } else {
-            const newMsg = { ...oldMsg };
-            const currentActiveVersionIdx = newMsg.activeVersion ?? (newMsg.versions ? newMsg.versions.length - 1 : 0);
-            const newVersions = [...(newMsg.versions || [])];
-
-            if (newVersions[currentActiveVersionIdx]) {
-                const updatedVersion = { ...newVersions[currentActiveVersionIdx] };
-                updatedVersion.text += textChunk;
-                newVersions[currentActiveVersionIdx] = updatedVersion;
-                newMsg.versions = newVersions;
-            }
-            newMsg.text += textChunk;
-            
-            if (isError) {
-                newMsg.error = errorMessage;
-            }
-            updatedMessages[existingMsgIndex] = newMsg;
+          const newMsg = { ...oldMsg };
+          const currentActiveVersionIdx = newMsg.activeVersion ?? (newMsg.versions ? newMsg.versions.length - 1 : 0);
+          const newVersions = [...(newMsg.versions || [])];
+          if (newVersions[currentActiveVersionIdx]) {
+            const updatedVersion = { ...newVersions[currentActiveVersionIdx] };
+            updatedVersion.text += textChunk;
+            // Only update thinkingSteps for the current version
+            if (finalThinkingSteps) updatedVersion.thinkingSteps = finalThinkingSteps;
+            newVersions[currentActiveVersionIdx] = updatedVersion;
+            newMsg.versions = newVersions;
+          }
+          newMsg.text += textChunk;
+          if (isError) {
+            newMsg.error = errorMessage;
+          }
+          if(finalThinkingSteps) {
+            newMsg.thinkingSteps = finalThinkingSteps;
+          }
+          updatedMessages[existingMsgIndex] = newMsg;
         }
         return updatedMessages;
-
       } else if (isFirstChunk) {
         const newVersion: MessageVersion = {
           text: textChunk,
           modelAliasUsed: currentModelAliasRef.current,
           timestamp: Date.now(),
+          thinkingSteps: finalThinkingSteps,
         };
         const newAiMessage: Message = {
           id,
@@ -144,27 +150,29 @@ export function useChatLogic({
           versions: [newVersion],
           activeVersion: 0,
           error: isError ? errorMessage : undefined,
+          thinkingSteps: finalThinkingSteps,
         };
         return [...prev, newAiMessage];
       }
-
       return prev;
     });
   }, [defaultModelAlias]);
   
-  const addOrUpdateThinkingSteps = useCallback((textChunk: string) => {
-      setThinkingSteps(prev => {
-          if (prev.length === 0) {
-              return [{ id: 'thinking-1', text: textChunk }];
-          }
-          const newSteps = [...prev];
-          const lastStepIndex = newSteps.length - 1;
-          newSteps[lastStepIndex] = {
-              ...newSteps[lastStepIndex],
-              text: newSteps[lastStepIndex].text + textChunk,
+  const addOrUpdateThinkingSteps = useCallback((textChunk: string, localAccumulator: ThinkingStep[]): ThinkingStep[] => {
+      let updatedAccumulator = [...localAccumulator];
+      if (updatedAccumulator.length === 0) {
+          updatedAccumulator = [{ id: 'thinking-1', text: textChunk }];
+      } else {
+          const lastStepIndex = updatedAccumulator.length - 1;
+          updatedAccumulator[lastStepIndex] = {
+              ...updatedAccumulator[lastStepIndex],
+              text: updatedAccumulator[lastStepIndex].text + textChunk,
           };
-          return newSteps;
-      });
+      }
+
+      // Update the live thinking steps for UI display
+      setThinkingSteps(updatedAccumulator);
+      return updatedAccumulator;
   }, []);
 
   const processAndSetStream = useCallback(async (
@@ -178,6 +186,7 @@ export function useChatLogic({
     let sseBuffer = '';
     let contentBuffer = '';
     let isThinking = false;
+    let accumulatedThinkingSteps: ThinkingStep[] = [];
     
     const useReasoning = currentModelAliasRef.current.includes("Think") || currentModelAliasRef.current.includes("1.5");
 
@@ -192,7 +201,33 @@ export function useChatLogic({
         }
 
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          if (accumulatedThinkingSteps.length > 0) {
+            // Stream is done, save the accumulated thinking steps to the message
+            addOrUpdateAiMessage(messageIdToUpdate, "", false, false, undefined, isRegeneration, accumulatedThinkingSteps);
+            // --- Add permanent thinking message to chat history, right before the AI message ---
+            setMessages(prev => {
+              // Find the index of the AI message
+              const aiIdx = prev.findIndex(m => m.id === messageIdToUpdate);
+              if (aiIdx === -1) return prev;
+              // Remove any previous thinking message for this AI message
+              const filtered = prev.filter(m => !(m.speaker === 'thinking' && m.timestamp === prev[aiIdx].timestamp));
+              // Insert thinking message right before the AI message
+              return [
+                ...filtered.slice(0, aiIdx),
+                {
+                  id: `thinking-${messageIdToUpdate}`,
+                  text: '',
+                  speaker: 'thinking',
+                  thinkingSteps: accumulatedThinkingSteps,
+                  timestamp: Date.now(),
+                } as Message,
+                ...filtered.slice(aiIdx)
+              ];
+            });
+          }
+          break;
+        }
 
         sseBuffer += decoder.decode(value, { stream: true });
         
@@ -227,7 +262,9 @@ export function useChatLogic({
                     isThinking = true;
                 } else if (isThinking && endTagIndex !== -1) {
                     const thinkingPart = contentBuffer.substring(0, endTagIndex);
-                    if (thinkingPart) addOrUpdateThinkingSteps(thinkingPart);
+                    if (thinkingPart) {
+                        accumulatedThinkingSteps = addOrUpdateThinkingSteps(thinkingPart, accumulatedThinkingSteps);
+                    }
                     contentBuffer = contentBuffer.substring(endTagIndex + thinkEndTag.length);
                     isThinking = false;
                 } else {
@@ -238,7 +275,7 @@ export function useChatLogic({
 
         if (contentBuffer) {
             if (isThinking) {
-                addOrUpdateThinkingSteps(contentBuffer);
+                accumulatedThinkingSteps = addOrUpdateThinkingSteps(contentBuffer, accumulatedThinkingSteps);
             } else {
                 addOrUpdateAiMessage(messageIdToUpdate, contentBuffer, isFirstChunk, false, undefined, isRegeneration);
                 if(isFirstChunk) isFirstChunk = false;
@@ -253,34 +290,54 @@ export function useChatLogic({
       setError("Error processing AI response: " + errorMessage);
     } finally {
       setIsLoading(false);
+      setThinkingSteps([]); // Clear live thinking steps when done
       if (reader) reader.releaseLock();
     }
   }, [addOrUpdateAiMessage, addOrUpdateThinkingSteps]);
   
   const sendMessage = useCallback(async (prompt: string, userMessageAlreadyAdded: boolean = false, regeneratedMessageId?: string) => {
+    setThinkingSteps([]); // Always clear live thinking steps on new request
     const isRegeneration = !!regeneratedMessageId;
     let historyToSend: Message[];
     let promptForApi: string;
     let messageIdToUpdate: string;
 
-    setThinkingSteps([]);
-
     if (isRegeneration) {
         const regeneratedMsgIndex = messages.findIndex(m => m.id === regeneratedMessageId);
-        if (regeneratedMsgIndex < 1 || messages[regeneratedMsgIndex - 1].speaker !== 'user') {
+        // Find the nearest preceding user message, skipping 'thinking' messages
+        let userMsgIndex = regeneratedMsgIndex - 1;
+        while (userMsgIndex >= 0 && messages[userMsgIndex].speaker !== 'user') {
+            userMsgIndex--;
+        }
+        if (regeneratedMsgIndex < 1 || userMsgIndex < 0) {
             setError("Cannot regenerate: No preceding user prompt found.");
             return;
         }
-        historyToSend = messages.slice(0, regeneratedMsgIndex - 1);
-        promptForApi = messages[regeneratedMsgIndex - 1].text;
+        historyToSend = messages.slice(0, userMsgIndex);
+        promptForApi = messages[userMsgIndex].text;
         messageIdToUpdate = regeneratedMessageId;
 
+        // Hapus semua pesan 'thinking' yang terkait dengan AI message ini
         setMessages(prev =>
-            prev.map(msg =>
-                msg.id === regeneratedMessageId
-                ? { ...msg, text: '', error: undefined, feedback: undefined }
-                : msg
-            )
+            prev
+                .filter(msg => !(msg.speaker === 'thinking' && (msg.id === `thinking-${regeneratedMessageId}` || (msg.timestamp && messages[regeneratedMsgIndex]?.timestamp && msg.timestamp === messages[regeneratedMsgIndex].timestamp))))
+                .map(msg =>
+                    msg.id === regeneratedMessageId
+                        // Only clear thinkingSteps for the new version, keep all previous versions' thinkingSteps
+                        ? {
+                            ...msg,
+                            text: '',
+                            error: undefined,
+                            feedback: undefined,
+                            thinkingSteps: undefined,
+                            versions: msg.versions?.map((v, i) =>
+                                i === ((msg.versions?.length ?? 1) - 1)
+                                    ? { ...v, thinkingSteps: undefined } // Only clear the latest version's thinkingSteps
+                                    : v
+                            )
+                        }
+                        : msg
+                )
         );
 
     } else {
@@ -358,70 +415,18 @@ export function useChatLogic({
         console.error("Cannot edit message: not found or not a user message.");
         return;
     }
-    
+    setThinkingSteps([]); // Clear live thinking steps from any previous turn.
     const historyBeforeEdit = messages.slice(0, messageIndex);
-    
     const editedMessage: Message = {
         ...messages[messageIndex],
         text: newText,
         timestamp: Date.now(),
     };
-
-    const newMessagesState = [...historyBeforeEdit, editedMessage];
+    // Remove all thinking messages after edit
+    const newMessagesState = [...historyBeforeEdit, editedMessage, ...messages.slice(messageIndex + 1).filter(m => m.speaker !== 'thinking')];
     setMessages(newMessagesState);
-
-    const promptForApi = newText;
-    const historyForApi = historyBeforeEdit;
-    
-    const messageIdToUpdate = Date.now().toString(36) + Math.random().toString(36).substring(2,9) + "-ai-edited";
-    
-    setIsLoading(true);
-    setError(null);
-    abortControllerRef.current = new AbortController();
-
-    const sendEditedRequest = async () => {
-        try {
-            const apiHistory = historyForApi
-                .filter(msg => !msg.error)
-                .map(msg => ({
-                    role: msg.speaker === 'user' ? 'user' : ('assistant' as 'user' | 'assistant'),
-                    content: msg.versions && typeof msg.activeVersion === 'number' ? msg.versions[msg.activeVersion].text : msg.text,
-                }));
-            
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Internal-API-Token': process.env.NEXT_PUBLIC_INTERNAL_API_TOKEN || '',
-                },
-                body: JSON.stringify({
-                    prompt: promptForApi,
-                    history: apiHistory,
-                    modelAlias: currentModelAlias,
-                }),
-                signal: abortControllerRef.current?.signal,
-            });
-
-            if (!response.ok || !response.body) {
-                const errorText = await response.text().catch(() => `HTTP error! status: ${response.status}`);
-                throw new Error(errorText);
-            }
-            
-            await processAndSetStream(response.body, messageIdToUpdate, false);
-
-        } catch (e: any) {
-            if (e.name !== 'AbortError') {
-                const specificError = getFriendlyErrorMessage(e.message);
-                setError(specificError);
-                addOrUpdateAiMessage(messageIdToUpdate, "", true, true, specificError, false);
-            }
-            setIsLoading(false);
-        }
-    };
-    
-    sendEditedRequest();
-
-  }, [messages, isLoading, currentModelAlias, addOrUpdateAiMessage, processAndSetStream]);
+    sendMessage(newText, true);
+  }, [messages, isLoading, sendMessage]);
 
   const handleLike = useCallback((messageId: string) => {
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'liked' ? undefined : 'liked' } : m));
@@ -444,6 +449,7 @@ export function useChatLogic({
             modelAliasUsed: newActiveVersion.modelAliasUsed,
             timestamp: newActiveVersion.timestamp,
             error: undefined,
+            thinkingSteps: newActiveVersion.thinkingSteps, // restore thinkingSteps for this version at top-level
           };
         }
       }

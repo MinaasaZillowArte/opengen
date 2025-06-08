@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import MessageBubble from './MessageBubble';
 import ThinkingBubble from './ThinkingBubble';
 import WelcomeScreen from './WelcomeScreen';
+import EditBubble from './EditBubble';
 import { Message, ThinkingStep } from '@/hooks/useChatLogic';
-import { FiCpu, FiRefreshCw, FiThumbsUp, FiThumbsDown, FiChevronLeft, FiChevronRight, FiCopy, FiCheck, FiEdit, FiX } from 'react-icons/fi';
+import { FiCpu, FiRefreshCw, FiThumbsUp, FiThumbsDown, FiChevronLeft, FiChevronRight, FiCopy, FiCheck, FiEdit } from 'react-icons/fi';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -36,7 +37,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const editTextAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCopy = useCallback((textToCopy: string, messageId: string) => {
     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -64,13 +64,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   };
   
   useEffect(() => {
-    if (editingMessageId && editTextAreaRef.current) {
-        editTextAreaRef.current.style.height = 'auto';
-        editTextAreaRef.current.style.height = `${editTextAreaRef.current.scrollHeight}px`;
-    }
-  }, [editText, editingMessageId]);
-
-  useEffect(() => {
     if (chatContainerRef.current) {
       setTimeout(() => {
         if (chatContainerRef.current) {
@@ -89,6 +82,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const showWelcomeScreen = messages.length === 0 && thinkingSteps.length === 0 && !isLoading;
 
   const renderMessage = (msg: Message, isLast: boolean) => {
+    if (msg.speaker === 'thinking' && msg.thinkingSteps && msg.thinkingSteps.length > 0) {
+      // Render permanent thinking process as a chat bubble
+      return <ThinkingBubble key={msg.id} steps={msg.thinkingSteps} />;
+    }
     if (!msg.text && isLoading && msg.speaker === 'ai') {
         return null;
     }
@@ -99,18 +96,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
     if (editingMessageId === msg.id) {
         return (
-          <div key={`editing-${msg.id}`} className="flex justify-end my-3 items-end gap-2.5">
-              <div className="w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl">
-                 <div className="bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--color-primary)] shadow-md">
-                    <textarea ref={editTextAreaRef} value={editText} onChange={(e) => setEditText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); } if (e.key === 'Escape') { handleCancelEdit(); } }} className="w-full p-2 bg-transparent text-[var(--text-primary)] resize-none outline-none text-sm" rows={1} autoFocus />
-                    <div className="flex justify-end items-center gap-2 mt-2">
-                         <button onClick={handleCancelEdit} className="px-3 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-colors">Cancel</button>
-                         <button onClick={handleSaveEdit} className="px-3 py-1 text-xs font-semibold text-white bg-[var(--color-primary)] hover:bg-opacity-90 rounded-md transition-colors">Save & Submit</button>
-                    </div>
-                 </div>
-              </div>
-               <div className="w-8 h-8 rounded-full bg-[var(--accent-bg-light)] flex items-center justify-center flex-shrink-0"> <FiEdit className="w-5 h-5 text-[var(--color-primary)]" /> </div>
-          </div>
+          <EditBubble
+            key={`editing-${msg.id}`}
+            editText={editText}
+            setEditText={setEditText}
+            onSave={handleSaveEdit}
+            onCancel={handleCancelEdit}
+          />
         );
       }
 
@@ -145,6 +137,39 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     )
   }
 
+  // Improved: Always render 'thinking' message directly before its corresponding 'ai' message
+  const renderChatHistory = () => {
+    const result: React.ReactNode[] = [];
+    let i = 0;
+    while (i < historicalMessages.length) {
+      const msg = historicalMessages[i];
+      if (msg.speaker === 'ai') {
+        // If this AI message has versions, show the thinkingSteps from the active version
+        let thinkingStepsToShow: ThinkingStep[] | undefined = undefined;
+        if (msg.versions && typeof msg.activeVersion === 'number' && msg.versions[msg.activeVersion]?.thinkingSteps) {
+          thinkingStepsToShow = msg.versions[msg.activeVersion].thinkingSteps;
+        } else if (msg.thinkingSteps) {
+          thinkingStepsToShow = msg.thinkingSteps;
+        }
+        if (thinkingStepsToShow && thinkingStepsToShow.length > 0) {
+          result.push(<ThinkingBubble key={`thinking-${msg.id}-${msg.activeVersion ?? 0}`} steps={thinkingStepsToShow} />);
+        }
+        result.push(renderMessage(msg, i === historicalMessages.length - 1));
+        i++;
+      } else if (msg.speaker === 'thinking') {
+        // Only render if not followed by an ai message (handled above)
+        if (i + 1 >= historicalMessages.length || historicalMessages[i + 1].speaker !== 'ai') {
+          result.push(renderMessage(msg, i === historicalMessages.length - 1));
+        }
+        i++;
+      } else {
+        result.push(renderMessage(msg, i === historicalMessages.length - 1));
+        i++;
+      }
+    }
+    return result;
+  };
+
   return (
     <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-4 md:p-6 space-y-1 scrollbar-thin scrollbar-thumb-[var(--scrollbar-thumb)] scrollbar-track-[var(--scrollbar-track)]">
       {showWelcomeScreen && (
@@ -156,7 +181,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       )}
       
       <AnimatePresence>
-        {historicalMessages.map((msg, index) => renderMessage(msg, index === historicalMessages.length - 1))}
+        {renderChatHistory()}
       </AnimatePresence>
       
       {thinkingSteps.length > 0 && (
