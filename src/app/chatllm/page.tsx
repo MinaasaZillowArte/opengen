@@ -1,3 +1,4 @@
+// src/app/chatllm/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
@@ -59,6 +60,8 @@ function ChatPageContent() {
     handleDislike,
     handleNavigateVersion,
     handleRegenerate,
+    // --- AMBIL FUNGSI EDIT DARI HOOK ---
+    handleEditSubmit,
   }: UseChatLogicReturn = useChatLogic();
 
   const initialLoadProcessedRef = useRef(false);
@@ -408,6 +411,7 @@ function ChatPageContent() {
                 onLike={handleLike}
                 onDislike={handleDislike}
                 onNavigateVersion={handleNavigateVersion}
+                onEditSubmit={handleEditSubmit}
               />
               {error && (
                 <div className="px-4 py-2 text-center text-red-500 bg-red-500/10 text-xs">

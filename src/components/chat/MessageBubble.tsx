@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { FiCopy, FiCpu, FiUser, FiAlertTriangle, FiCheck } from 'react-icons/fi';
+import { FiCopy, FiUser, FiAlertTriangle, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
@@ -48,7 +48,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
     >
       {!isUser && (
         <div className="w-8 h-8 rounded-full bg-[var(--accent-bg-light)] flex items-center justify-center flex-shrink-0 mt-1">
-          <FiCpu className="w-5 h-5 text-[var(--color-primary)]" />
+          <img src="/opengen.svg" className="w-5 h-5" alt="OpenGen" />
         </div>
       )}
       <div
@@ -112,7 +112,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isDarkMode }) =>
         >
           {message.text || (message.error ? '' : '\u200B')}
         </ReactMarkdown>
-         {/* Tombol salin yang sebelumnya ada di sini telah dihapus untuk dipindahkan ke ChatArea */}
       </div>
       {isUser && (
         <div className="w-8 h-8 rounded-full bg-[var(--accent-bg-light)] flex items-center justify-center flex-shrink-0 mt-1">

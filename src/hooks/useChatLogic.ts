@@ -1,3 +1,4 @@
+// src/hooks/useChatLogic.ts
 import { useState, useCallback, useRef, Dispatch, SetStateAction } from 'react';
 import { parseStreamChunk } from '@/utils/streamParser';
 
@@ -45,6 +46,7 @@ export interface UseChatLogicReturn {
   handleDislike: (messageId: string) => void;
   handleNavigateVersion: (messageId: string, direction: 'prev' | 'next') => void;
   handleRegenerate: (messageId: string) => void;
+  handleEditSubmit: (messageId: string, newText: string) => void;
 }
 
 export function useChatLogic({
@@ -272,7 +274,8 @@ export function useChatLogic({
             history: apiHistory,
             modelAlias: currentModelAlias,
         }),
-        signal: abortControllerRef.current.signal,
+        // --- PERBAIKAN ERROR DI SINI ---
+        signal: abortControllerRef.current?.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -296,6 +299,81 @@ export function useChatLogic({
   const handleRegenerate = useCallback((messageId: string) => {
     sendMessage("", false, messageId);
   }, [sendMessage]);
+
+  const handleEditSubmit = useCallback((messageId: string, newText: string) => {
+    if (isLoading) return;
+
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1 || messages[messageIndex].speaker !== 'user') {
+        console.error("Cannot edit message: not found or not a user message.");
+        return;
+    }
+    
+    const historyBeforeEdit = messages.slice(0, messageIndex);
+    
+    const editedMessage: Message = {
+        ...messages[messageIndex],
+        text: newText,
+        timestamp: Date.now(),
+    };
+
+    const newMessagesState = [...historyBeforeEdit, editedMessage];
+    setMessages(newMessagesState);
+
+    const promptForApi = newText;
+    const historyForApi = historyBeforeEdit;
+    
+    const messageIdToUpdate = Date.now().toString(36) + Math.random().toString(36).substring(2,9) + "-ai-edited";
+    
+    setIsLoading(true);
+    setError(null);
+    if (currentModelAlias === "ChatNPT 1.0 Think") {
+        setThinkingSteps([]);
+    }
+    abortControllerRef.current = new AbortController();
+
+    const sendEditedRequest = async () => {
+        try {
+            const apiHistory = historyForApi
+                .filter(msg => !msg.error)
+                .map(msg => ({
+                    role: msg.speaker === 'user' ? 'user' : ('assistant' as 'user' | 'assistant'),
+                    content: msg.versions && typeof msg.activeVersion === 'number' ? msg.versions[msg.activeVersion].text : msg.text,
+                }));
+            
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: promptForApi,
+                    history: apiHistory,
+                    modelAlias: currentModelAlias,
+                }),
+                // --- PERBAIKAN ERROR DI SINI JUGA ---
+                signal: abortControllerRef.current?.signal,
+            });
+
+            if (!response.ok || !response.body) {
+                const errorText = await response.text().catch(() => `HTTP error! status: ${response.status}`);
+                throw new Error(errorText);
+            }
+            
+            await processAndSetStream(response.body, messageIdToUpdate, false);
+
+        } catch (e: any) {
+            if (e.name !== 'AbortError') {
+                const specificError = e.message || "Failed to get response from AI after editing.";
+                setError(specificError);
+                addOrUpdateAiMessage(messageIdToUpdate, "", true, true, specificError, false);
+            }
+            setIsLoading(false);
+        }
+    };
+    
+    sendEditedRequest();
+
+  }, [messages, isLoading, currentModelAlias, addOrUpdateAiMessage, processAndSetStream]);
+
 
   const handleLike = useCallback((messageId: string) => {
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'liked' ? undefined : 'liked' } : m));
@@ -358,5 +436,6 @@ export function useChatLogic({
     handleDislike,
     handleNavigateVersion,
     handleRegenerate,
+    handleEditSubmit,
   };
 }
