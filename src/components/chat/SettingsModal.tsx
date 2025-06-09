@@ -201,19 +201,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
                   {activeTab === 'data' && (
                     <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <div>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-grow">
                           <label id="share-history-label" className="block text-sm font-medium text-[var(--text-primary)]">Share chat history to OpenGen</label>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">This helps us improve our models by allowing us to use your anonymized conversations.</p>
                         </div>
-                        <SwitchToggle enabled={shareHistory} setEnabled={handleShareHistoryChange} labelId="share-history-label" />
+                        <div className="flex-shrink-0">
+                           <SwitchToggle enabled={shareHistory} setEnabled={handleShareHistoryChange} labelId="share-history-label" />
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                        <div className="flex-grow">
                           <label className="block text-sm font-medium text-[var(--text-primary)]">Share chat</label>
                            <p className="text-xs text-[var(--text-tertiary)] mt-1">Create a shareable, read-only link for the current conversation.</p>
                         </div>
-                         <button onClick={handleShareLink} disabled={shareStatus === 'loading'} className="flex items-center justify-center px-4 py-2 border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-32 text-center">
+                         <button onClick={handleShareLink} disabled={shareStatus === 'loading'} className="flex items-center justify-center px-4 py-2 border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex-shrink-0 min-w-[130px]">
                             {shareStatus === 'loading' && <FiLoader className="w-4 h-4 animate-spin"/>}
                             {shareStatus === 'idle' && <><FiLink className="w-4 h-4 mr-2"/>Create Link</>}
                             {shareStatus === 'success' && <><FiCheck className="w-4 h-4 mr-2 text-green-500"/>Copied!</>}
@@ -231,19 +233,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                    {activeTab === 'beta' && (
                     <div className="space-y-6">
-                       <div className="flex justify-between items-center">
-                        <div>
+                       <div className="flex justify-between items-start gap-4">
+                        <div className="flex-grow">
                           <label id="use-tools-label" className="block text-sm font-medium text-[var(--text-primary)]">Use tools</label>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">Allow ChatNPT to use experimental tools like search engines to enhance responses.</p>
                         </div>
-                        <SwitchToggle enabled={useTools} setEnabled={setUseTools} labelId='use-tools-label' />
+                        <div className="flex-shrink-0">
+                          <SwitchToggle enabled={useTools} setEnabled={setUseTools} labelId='use-tools-label' />
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-grow">
                           <label id="use-pesona-label" className="block text-sm font-medium text-[var(--text-primary)]">Pesona</label>
                            <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">Enable experimental AI personas for different conversation styles.</p>
                         </div>
-                         <SwitchToggle enabled={usePesona} setEnabled={setUsePesona} labelId='use-pesona-label' />
+                         <div className="flex-shrink-0">
+                           <SwitchToggle enabled={usePesona} setEnabled={setUsePesona} labelId='use-pesona-label' />
+                         </div>
                       </div>
                     </div>
                   )}
