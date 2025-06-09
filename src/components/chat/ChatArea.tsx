@@ -137,14 +137,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     )
   }
 
-  // Improved: Always render 'thinking' message directly before its corresponding 'ai' message
+
   const renderChatHistory = () => {
     const result: React.ReactNode[] = [];
     let i = 0;
     while (i < historicalMessages.length) {
       const msg = historicalMessages[i];
       if (msg.speaker === 'ai') {
-        // If this AI message has versions, show the thinkingSteps from the active version
         let thinkingStepsToShow: ThinkingStep[] | undefined = undefined;
         if (msg.versions && typeof msg.activeVersion === 'number' && msg.versions[msg.activeVersion]?.thinkingSteps) {
           thinkingStepsToShow = msg.versions[msg.activeVersion].thinkingSteps;
@@ -157,7 +156,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         result.push(renderMessage(msg, i === historicalMessages.length - 1));
         i++;
       } else if (msg.speaker === 'thinking') {
-        // Only render if not followed by an ai message (handled above)
         if (i + 1 >= historicalMessages.length || historicalMessages[i + 1].speaker !== 'ai') {
           result.push(renderMessage(msg, i === historicalMessages.length - 1));
         }

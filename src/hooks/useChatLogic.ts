@@ -77,6 +77,40 @@ export function useChatLogic({
   useEffect(() => {
     currentModelAliasRef.current = currentModelAlias;
   }, [currentModelAlias]);
+  
+  const sendFeedbackForImprovement = async (messageId: string, feedback: 'liked' | 'disliked') => {
+      const shouldShare = localStorage.getItem('opengen_share_history') === 'true';
+      if (!shouldShare) {
+        console.log("History sharing is disabled by the user.");
+        return;
+      }
+
+      const messageIndex = messages.findIndex(m => m.id === messageId);
+      if (messageIndex === -1) return;
+
+      const historyToSend = messages.slice(0, messageIndex + 1);
+      const modelAliasUsed = messages[messageIndex].modelAliasUsed || currentModelAlias;
+
+      try {
+        const response = await fetch('/api/improve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                history: historyToSend,
+                modelAlias: modelAliasUsed,
+                feedback: { messageId, type: feedback }
+            }),
+        });
+        if (response.ok) {
+            console.log("Successfully sent history for model improvement.");
+        } else {
+            console.error("Failed to send history for improvement:", await response.text());
+        }
+      } catch (error) {
+        console.error("Error sending feedback to /api/improve:", error);
+      }
+  };
+
 
   const addOrUpdateAiMessage = useCallback((
     id: string,
@@ -407,12 +441,26 @@ export function useChatLogic({
   }, [messages, isLoading, sendMessage]);
 
   const handleLike = useCallback((messageId: string) => {
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'liked' ? undefined : 'liked' } : m));
-  }, []);
+    setMessages(prev => {
+        const newMessages = prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'liked' ? undefined : 'liked' as 'liked' } : m);
+        const message = newMessages.find(m => m.id === messageId);
+        if (message && message.feedback === 'liked') {
+            sendFeedbackForImprovement(messageId, 'liked');
+        }
+        return newMessages;
+    });
+  }, [messages]);
 
   const handleDislike = useCallback((messageId: string) => {
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'disliked' ? undefined : 'disliked' } : m));
-  }, []);
+    setMessages(prev => {
+        const newMessages = prev.map(m => m.id === messageId ? { ...m, feedback: m.feedback === 'disliked' ? undefined : 'disliked' as 'disliked' } : m);
+        const message = newMessages.find(m => m.id === messageId);
+        if (message && message.feedback === 'disliked') {
+            sendFeedbackForImprovement(messageId, 'disliked');
+        }
+        return newMessages;
+    });
+  }, [messages]);
 
   const handleNavigateVersion = useCallback((messageId: string, direction: 'prev' | 'next') => {
     setMessages(prev => prev.map(m => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiSun, FiMoon, FiType, FiMaximize, FiMinimize, FiShare2, FiDownload, FiTrash2, FiInfo, FiSettings, FiSave, FiGift, FiMail } from 'react-icons/fi';
+import { FiX, FiSun, FiMoon, FiTrash2, FiSettings, FiSave, FiGift, FiMail, FiLink, FiLoader, FiCheck, FiAlertTriangle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChatSession } from '@/types/chat';
 import { Message } from '@/hooks/useChatLogic';
 
 interface SettingsModalProps {
@@ -8,57 +9,109 @@ interface SettingsModalProps {
   onClose: () => void;
   theme: 'light' | 'dark';
   onThemeChange: () => void;
-  chatMessages: Message[];
   onClearAllChats: () => void;
+  chatSessions: ChatSession[];
+  currentChatId: string | null;
+  chatMessages: Message[];
 }
 
 type ActiveTab = 'general' | 'data' | 'beta';
+
+const SwitchToggle: React.FC<{ enabled: boolean; setEnabled: (enabled: boolean) => void; labelId: string; }> = ({ enabled, setEnabled, labelId }) => {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-labelledby={labelId}
+      onClick={() => setEnabled(!enabled)}
+      className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)] focus:ring-offset-[var(--card-bg)]`}
+      style={{ backgroundColor: enabled ? 'var(--color-primary)' : 'var(--bg-tertiary)' }}
+    >
+      <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${enabled ? 'translate-x-6' : 'translate-x-1'}`}/>
+    </button>
+  );
+};
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   theme,
   onThemeChange,
-  chatMessages,
-  onClearAllChats
+  onClearAllChats,
+  chatSessions,
+  currentChatId
 }) => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('general');
   const [enterToSend, setEnterToSend] = useState(true);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('data');
+  const [shareHistory, setShareHistory] = useState(true);
+  const [useTools, setUseTools] = useState(false);
+  const [usePesona, setUsePesona] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  if (!isOpen) return null;
-
-  const handleExportData = (format: 'json' | 'md') => {
-    let dataStr = "";
-    let filename = "";
-    if (format === 'json') {
-      dataStr = JSON.stringify(chatMessages, null, 2);
-      filename = 'chatnpt_export.json';
-    } else {
-      dataStr = chatMessages.map(msg => `**${msg.speaker === 'user' ? 'You' : 'ChatNPT'}** (${new Date(msg.timestamp || 0).toLocaleString()}):\n\n${msg.text}\n\n---\n`).join('');
-      filename = 'chatnpt_export.md';
+  useEffect(() => {
+    const savedShareHistory = localStorage.getItem('opengen_share_history');
+    if (savedShareHistory !== null) {
+      setShareHistory(JSON.parse(savedShareHistory));
     }
-    const blob = new Blob([dataStr], { type: format === 'json' ? 'application/json' : 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleShareHistoryChange = (enabled: boolean) => {
+    setShareHistory(enabled);
+    localStorage.setItem('opengen_share_history', JSON.stringify(enabled));
   };
-  
-  const handleClearChatsWithConfirmation = () => {
-    if (window.confirm("Are you sure you want to delete all chat messages? This action cannot be undone.")) {
-        onClearAllChats();
+
+  const handleShareLink = async () => {
+    if (!currentChatId) {
+        alert("Please select a chat to share.");
+        return;
     }
+
+    const currentSession = chatSessions.find(s => s.id === currentChatId);
+    if (!currentSession) {
+        alert("Could not find the current chat session data.");
+        return;
+    }
+
+    setShareStatus('loading');
+    try {
+        const response = await fetch('/api/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentSession),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to create share link.');
+        }
+
+        const link = `${window.location.origin}/shared/${data.shareId}`;
+        await navigator.clipboard.writeText(link);
+        setShareStatus('success');
+
+    } catch (err: any) {
+        console.error("Failed to copy link:", err);
+        setShareStatus('error');
+    } finally {
+        setTimeout(() => setShareStatus('idle'), 3000);
+    }
+  };
+
+  const handleClearChatsAction = () => {
+    onClearAllChats();
+    setShowDeleteModal(false);
+    onClose();
   };
 
   const modalVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
+    hidden: { opacity: 0, scale: 0.95 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.2, ease: "easeOut" } },
-    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.15, ease: "easeIn" } },
+    exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15, ease: "easeIn" } },
   };
+
   const backdropVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1 },
@@ -79,44 +132,45 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     </button>
   );
 
-
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          key="settings-backdrop"
-          variants={backdropVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="fixed inset-0 bg-[var(--overlay-bg)] backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
-          onClick={onClose}
-        >
+        <>
           <motion.div
-            key="settings-modal"
-            variants={modalVariants}
+            key="settings-backdrop"
+            variants={backdropVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col border border-[var(--border-color)]"
-            onClick={(e) => e.stopPropagation()}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-[var(--overlay-bg)] backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
+            onClick={onClose}
           >
-            <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Settings</h2>
-              <button onClick={onClose} className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
+            <motion.div
+              key="settings-modal"
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-[var(--card-bg)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-[var(--border-color)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)] flex-shrink-0">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Settings</h2>
+                <button onClick={onClose} className="p-1.5 rounded-full text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
 
-            <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-              <nav className="w-full md:w-1/4 p-4 border-b md:border-b-0 md:border-r border-[var(--border-color)] space-y-1.5">
-                <TabButton tabId="general" currentTab={activeTab} onClick={() => setActiveTab('general')} Icon={FiSettings}>General</TabButton>
-                <TabButton tabId="data" currentTab={activeTab} onClick={() => setActiveTab('data')} Icon={FiSave}>Data Controls</TabButton>
-                <TabButton tabId="beta" currentTab={activeTab} onClick={() => setActiveTab('beta')} Icon={FiGift}>Beta Features</TabButton>
-              </nav>
+              <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
+                <nav className="w-full md:w-1/3 lg:w-1/4 p-4 border-b md:border-b-0 md:border-r border-[var(--border-color)] space-y-1.5 flex-shrink-0">
+                  <TabButton tabId="general" currentTab={activeTab} onClick={() => setActiveTab('general')} Icon={FiSettings}>General</TabButton>
+                  <TabButton tabId="data" currentTab={activeTab} onClick={() => setActiveTab('data')} Icon={FiSave}>Data Controls</TabButton>
+                  <TabButton tabId="beta" currentTab={activeTab} onClick={() => setActiveTab('beta')} Icon={FiGift}>Beta Features</TabButton>
+                </nav>
 
-              <div className="flex-grow p-6 overflow-y-auto scrollbar-thin">
-                {activeTab === 'general' && (
+                <div className="flex-grow p-6 overflow-y-auto scrollbar-thin">
+                  {activeTab === 'general' && (
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Theme</label>
@@ -145,37 +199,107 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
                 )}
-                {activeTab === 'data' && (
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Export Chat Data</label>
-                      <div className="flex gap-3">
-                        <button onClick={() => handleExportData('json')} className="flex-1 flex items-center justify-center px-4 py-2.5 border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                            <FiDownload className="w-4 h-4 mr-2"/> Export as JSON
+                  {activeTab === 'data' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <label id="share-history-label" className="block text-sm font-medium text-[var(--text-primary)]">Share chat history to OpenGen</label>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">This helps us improve our models by allowing us to use your anonymized conversations.</p>
+                        </div>
+                        <SwitchToggle enabled={shareHistory} setEnabled={handleShareHistoryChange} labelId="share-history-label" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--text-primary)]">Share chat</label>
+                           <p className="text-xs text-[var(--text-tertiary)] mt-1">Create a shareable, read-only link for the current conversation.</p>
+                        </div>
+                         <button onClick={handleShareLink} disabled={shareStatus === 'loading'} className="flex items-center justify-center px-4 py-2 border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-32 text-center">
+                            {shareStatus === 'loading' && <FiLoader className="w-4 h-4 animate-spin"/>}
+                            {shareStatus === 'idle' && <><FiLink className="w-4 h-4 mr-2"/>Create Link</>}
+                            {shareStatus === 'success' && <><FiCheck className="w-4 h-4 mr-2 text-green-500"/>Copied!</>}
+                            {shareStatus === 'error' && <><FiAlertTriangle className="w-4 h-4 mr-2 text-red-500"/>Error</>}
                         </button>
-                        <button onClick={() => handleExportData('md')} className="flex-1 flex items-center justify-center px-4 py-2.5 border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                            <FiDownload className="w-4 h-4 mr-2"/> Export as Markdown
+                      </div>
+                      <div className="border-t border-[var(--border-color)] pt-6 mt-6">
+                        <label className="block text-sm font-medium text-[var(--text-primary)]">Danger Zone</label>
+                         <p className="text-xs text-[var(--text-tertiary)] mt-1 mb-3">This action is permanent and cannot be undone.</p>
+                        <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center justify-center px-4 py-2.5 border border-red-500/50 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-md text-sm font-medium transition-colors">
+                            <FiTrash2 className="w-4 h-4 mr-2"/> Delete All Chat Data
                         </button>
                       </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Manage Data</label>
-                        <button onClick={handleClearChatsWithConfirmation} className="w-full flex items-center justify-center px-4 py-2.5 border border-red-500/50 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-md text-sm font-medium transition-colors">
-                            <FiTrash2 className="w-4 h-4 mr-2"/> Clear All Chat Data
-                        </button>
+                  )}
+                   {activeTab === 'beta' && (
+                    <div className="space-y-6">
+                       <div className="flex justify-between items-center">
+                        <div>
+                          <label id="use-tools-label" className="block text-sm font-medium text-[var(--text-primary)]">Use tools</label>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">Allow ChatNPT to use experimental tools like search engines to enhance responses.</p>
+                        </div>
+                        <SwitchToggle enabled={useTools} setEnabled={setUseTools} labelId='use-tools-label' />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <label id="use-pesona-label" className="block text-sm font-medium text-[var(--text-primary)]">Pesona</label>
+                           <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">Enable experimental AI personas for different conversation styles.</p>
+                        </div>
+                         <SwitchToggle enabled={usePesona} setEnabled={setUsePesona} labelId='use-pesona-label' />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+          
+          <AnimatePresence>
+            {showDeleteModal && (
+              <motion.div
+                key="delete-modal-backdrop"
+                variants={backdropVariants} initial="hidden" animate="visible" exit="exit"
+                className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[110]"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                <motion.div
+                  key="delete-modal-content"
+                  variants={modalVariants}
+                  className="bg-[var(--card-bg)] p-6 rounded-lg shadow-xl w-full max-w-md text-[var(--text-primary)] border border-[var(--border-color)]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-800/30 sm:mx-0 sm:h-10 sm:w-10">
+                       <FiAlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                       <h3 className="text-lg leading-6 font-medium text-[var(--text-primary)]">Delete all chats</h3>
+                       <div className="mt-2">
+                          <p className="text-sm text-[var(--text-secondary)]">
+                            Are you sure you want to delete all chat history? This action cannot be undone.
+                          </p>
+                       </div>
                     </div>
                   </div>
-                )}
-                 {activeTab === 'beta' && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-[var(--text-primary)]">No Beta Features...</h4>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">We're always working on new features. Check back later!</p>
+                  <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+                    <button
+                        type="button"
+                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:w-auto sm:text-sm"
+                        onClick={handleClearChatsAction}
+                    >
+                        Delete
+                    </button>
+                    <button
+                        type="button"
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-[var(--border-color)] shadow-sm px-4 py-2 bg-[var(--button-bg)] text-base font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+                        onClick={() => setShowDeleteModal(false)}
+                    >
+                        Cancel
+                    </button>
                   </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </AnimatePresence>
   );

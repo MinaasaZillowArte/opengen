@@ -1,4 +1,3 @@
-// src/app/chatllm/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
@@ -60,7 +59,6 @@ function ChatPageContent() {
     handleDislike,
     handleNavigateVersion,
     handleRegenerate,
-    // --- AMBIL FUNGSI EDIT DARI HOOK ---
     handleEditSubmit,
   }: UseChatLogicReturn = useChatLogic();
 
@@ -350,10 +348,8 @@ function ChatPageContent() {
   }, [isClient]);
 
   const clearAllLocalChats = useCallback(() => {
-    if (window.confirm("Are you sure you want to delete ALL chat data from this browser? This action cannot be undone.")) {
-        setChatSessions([]);
-        router.push('/chatllm', { scroll: false });
-    }
+    setChatSessions([]);
+    router.push('/chatllm', { scroll: false });
   }, [router]);
 
   const mainContentPaddingTop = isClient
@@ -434,6 +430,8 @@ function ChatPageContent() {
         onThemeChange={handleThemeChange}
         chatMessages={messages}
         onClearAllChats={clearAllLocalChats}
+        chatSessions={chatSessions}
+        currentChatId={currentActiveChatId}
       />
       {isDeleteConfirmModalOpen && chatToDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--overlay-bg)] backdrop-blur-sm p-4">
