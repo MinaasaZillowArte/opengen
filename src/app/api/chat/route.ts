@@ -4,6 +4,7 @@ const MODEL_ALIASES: Record<string, string> = {
   "NPT 1.0": "deepseek-ai/DeepSeek-V3-0324",
   "NPT 1.0 Think": "deepseek-ai/DeepSeek-R1",
   "NPT 1.5": "deepseek-ai/DeepSeek-R1-0528",
+  "NPT 1.5 Fast": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
 };
 
 const SYSTEM_PROMPT_CHATNPT = "You are ChatNPT, an advanced AI assistant created by the OpenGen project. You are helpful, creative, and friendly.";
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       model: actualModelId,
       messages: messagesForChutes,
       stream: true,
-      max_tokens: 10000,
+      max_tokens: 0,
       temperature: 0.7,
     };
 

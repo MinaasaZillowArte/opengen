@@ -11,6 +11,7 @@ const models: ModelOption[] = [
   { alias: "NPT 1.0", description: "Balanced model for general tasks." },
   { alias: "NPT 1.0 Think", description: "Best for Coding, Math and Complex Task." },
   { alias: "NPT 1.5", description: "Our Best Reasoning Models" },
+  { alias: "NPT 1.5 Fast", description: "Fast and efficient for Light Tasks." },
 ];
 
 interface ModelSelectorProps {
