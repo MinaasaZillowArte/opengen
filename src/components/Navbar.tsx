@@ -57,7 +57,7 @@ const navLinksData: NavItemType[] = [
   {
     label: 'Products',
     children: [
-      { href: '/chatllm', label: 'ChatNPT', description: "Access our flagship AI model." },
+      { href: '/ChatNPT', label: 'ChatNPT', description: "Access our flagship AI model." },
       { href: '/products/dpl', label: 'Developer Playground (DPL)', description: "Experiment with our models." },
       { href: '/#demo-section', label: 'Live Demos' },
     ],

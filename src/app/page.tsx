@@ -208,9 +208,9 @@ const OpenForEveryoneCard = React.memo(({ item }: { item: OpenGenForEveryoneItem
     const router = useRouter(); // useRouter sudah ada, kita akan memanfaatkannya
     const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (item.link) {
-            if (item.link === "/chatllm") { // Kondisi spesifik untuk /chatllm
+            if (item.link === "/ChatNPT") { // Kondisi spesifik untuk /ChatNPT
                 e.preventDefault();
-                router.push("/chatllm");
+                router.push("/ChatNPT");
             } else if (item.link.startsWith('#')) { // Logika untuk anchor link tetap dipertahankan
                 e.preventDefault();
                 const sectionId = item.link.substring(1);
@@ -238,7 +238,7 @@ const OpenForEveryoneCard = React.memo(({ item }: { item: OpenGenForEveryoneItem
                  <a
                     href={item.link}
                     onClick={handleLinkClick}
-                    target={item.link.startsWith('#') || item.link === "/chatllm" ? '_self' : '_blank'}
+                    target={item.link.startsWith('#') || item.link === "/ChatNPT" ? '_self' : '_blank'}
                     rel="noopener noreferrer"
                     className="mt-auto text-sm font-medium text-[var(--color-primary)] hover:underline flex items-center self-start"
                 >
@@ -309,7 +309,7 @@ const openGenForEveryoneData: OpenGenForEveryoneItem[] = [
         icon: FiZap, // Menggunakan FiZap untuk dampak "Gratis & Terbuka"
         title: "Our Commitment: Free & Open Access",
         description: "We believe powerful AI should be accessible to all. ChatNPT are completely free, with no hidden fees or subscriptions, ever.",
-        link: "/chatllm", // DIUBAH: Langsung ke halaman chatllm
+        link: "/ChatNPT", // DIUBAH: Langsung ke halaman ChatNPT
         linkText: "Get Started For Free"
     }
 ];
@@ -564,8 +564,8 @@ export default function HomePage() {
         if (promptToUse.trim()) {
             localStorage.setItem('initialPrompt', promptToUse.trim());
         }
-        // Asumsikan pengguna selalu diarahkan ke /chatllm karena produk ini gratis
-        router.push('/chatllm');
+        // Asumsikan pengguna selalu diarahkan ke /ChatNPT karena produk ini gratis
+        router.push('/ChatNPT');
     }, [router]);
 
     const scrollToSection = useCallback((id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, []);

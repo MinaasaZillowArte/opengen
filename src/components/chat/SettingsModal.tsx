@@ -46,7 +46,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>('data');
   const [shareHistory, setShareHistory] = useState(true);
   const [useTools, setUseTools] = useState(false);
-  const [usePesona, setUsePesona] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [shareStatus, setShareStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
@@ -241,15 +240,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex-shrink-0">
                           <SwitchToggle enabled={useTools} setEnabled={setUseTools} labelId='use-tools-label' />
                         </div>
-                      </div>
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-grow">
-                          <label id="use-pesona-label" className="block text-sm font-medium text-[var(--text-primary)]">Pesona</label>
-                           <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm">Enable experimental AI personas for different conversation styles.</p>
-                        </div>
-                         <div className="flex-shrink-0">
-                           <SwitchToggle enabled={usePesona} setEnabled={setUsePesona} labelId='use-pesona-label' />
-                         </div>
                       </div>
                     </div>
                   )}

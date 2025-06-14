@@ -132,7 +132,7 @@ function ChatPageContent() {
           prompt: prompt, 
           modelAlias: currentModelAlias
       }));
-      router.push(`/chatllm?chatId=${newChatId}`, { scroll: false });
+      router.push(`/ChatNPT?chatId=${newChatId}`, { scroll: false });
     } else {
       const sessionToUpdate = chatSessions.find(s => s.id === targetChatId);
       if (sessionToUpdate && sessionToUpdate.messages.length === 0 && 
@@ -229,7 +229,7 @@ function ChatPageContent() {
                 }
             } else {
                 console.warn(`Session with ID ${queryChatId} not found. Starting new chat mode.`);
-                router.replace('/chatllm');
+                router.replace('/ChatNPT');
             }
         }
     } else { 
@@ -274,7 +274,7 @@ function ChatPageContent() {
     if (currentActiveChatId) {
       saveCurrentChatStateToSessions(currentActiveChatId, messages, currentModelAlias);
     }
-    router.push('/chatllm', { scroll: false });
+    router.push('/ChatNPT', { scroll: false });
     if (window.innerWidth < 768 && isClient) setIsSidebarOpen(false);
   }, [currentActiveChatId, messages, currentModelAlias, saveCurrentChatStateToSessions, router, isClient]);
 
@@ -286,7 +286,7 @@ function ChatPageContent() {
     if (currentActiveChatId) {
         saveCurrentChatStateToSessions(currentActiveChatId, messages, currentModelAlias);
     }
-    router.push(`/chatllm?chatId=${sessionId}`, { scroll: false });
+    router.push(`/ChatNPT?chatId=${sessionId}`, { scroll: false });
     if (window.innerWidth < 768 && isClient) setIsSidebarOpen(false);
   }, [currentActiveChatId, messages, currentModelAlias, saveCurrentChatStateToSessions, router, isClient]);
 
@@ -309,7 +309,7 @@ function ChatPageContent() {
       if (deletedChatId === currentActiveChatId) {
         clearLogicChat(); 
         setCurrentActiveChatId(null); 
-        router.push('/chatllm', { scroll: false });
+        router.push('/ChatNPT', { scroll: false });
       }
 
       setIsDeleteConfirmModalOpen(false);
@@ -349,7 +349,7 @@ function ChatPageContent() {
 
   const clearAllLocalChats = useCallback(() => {
     setChatSessions([]);
-    router.push('/chatllm', { scroll: false });
+    router.push('/ChatNPT', { scroll: false });
   }, [router]);
 
   const mainContentPaddingTop = isClient
@@ -461,7 +461,7 @@ function ChatPageContent() {
   );
 }
 
-export default function ChatLLMPage() {
+export default function ChatNPTPage() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)]">Loading Chat Interface...</div>}>
       <ChatPageContent />
