@@ -12,7 +12,7 @@ import {
     FiDatabase, FiImage, FiPlayCircle, FiFilter, FiCheckCircle, FiChevronRight, FiUsers, FiBriefcase, FiArrowRight,
     FiPenTool, FiShare2, FiStar, FiSun, FiMoon, FiMail, FiGithub, FiLinkedin, FiTwitter, FiMapPin,
     FiPhone, FiSend, FiCheck, FiTerminal, FiBookOpen, FiMessageSquare, FiZap, FiRefreshCw, FiEye, FiKey,
-    FiEyeOff, FiPlay, FiPause, FiGift // FiGift ditambahkan jika ada, jika tidak FiZap akan digunakan sebagai alternatif
+    FiEyeOff, FiPlay, FiPause, FiGift
 } from 'react-icons/fi';
 import {
     motion,
@@ -26,10 +26,9 @@ import {
 } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar'; // Pastikan path ini benar
-import Footer from '@/components/Footer'; // Pastikan path ini benar
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
-// AbstractSvgPlaceholder digunakan di NewsCard, jadi dipertahankan
 const AbstractSvgPlaceholder = React.memo(({ className, seed = 0 }: { className?: string, seed?: number }) => {
     const random = useCallback((min: number, max: number) => { const x = Math.sin(seed + (className?.length ?? 0) * 10) * 10000; return min + (x - Math.floor(x)) * (max - min); }, [seed, className]);
     const duration1 = useRef(random(7, 10)).current;
@@ -47,13 +46,21 @@ const AbstractSvgPlaceholder = React.memo(({ className, seed = 0 }: { className?
 });
 AbstractSvgPlaceholder.displayName = 'AbstractSvgPlaceholder';
 
-// ======================= START: INSIGHTS SECTION (PENGGANTI NEWS SECTION) =======================
+const ChatNPTRoute = (router: ReturnType<typeof useRouter>) => {
+    const localRedirectUrl = process.env.NEXT_PUBLIC_CHATNPT_URL;
+    if (localRedirectUrl) {
+        window.location.href = localRedirectUrl;
+    } else {
+        router.push('/ChatNPT');
+    }
+};
+
 type InsightItem = {
     headline: string;
     category: string;
-    summary: string; // Mengganti readTime dengan summary
+    summary: string;
     imageSeed?: number;
-    link: string; // Menambahkan link untuk setiap insight
+    link: string;
 };
 
 type InsightCardProps = {
@@ -209,14 +216,13 @@ const OpenForEveryoneCard = React.memo(({ item }: { item: OpenGenForEveryoneItem
     const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (item.link) {
             if (item.link === "/ChatNPT") { // Kondisi spesifik untuk /ChatNPT
-                e.preventDefault();
-                router.push("/ChatNPT");
+                e.preventDefault(); // Mencegah navigasi default <a> tag
+                ChatNPTRoute(router);
             } else if (item.link.startsWith('#')) { // Logika untuk anchor link tetap dipertahankan
                 e.preventDefault();
                 const sectionId = item.link.substring(1);
                 document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
             }
-            // Untuk link eksternal, biarkan perilaku default tag <a>
         }
     };
 
@@ -564,8 +570,7 @@ export default function HomePage() {
         if (promptToUse.trim()) {
             localStorage.setItem('initialPrompt', promptToUse.trim());
         }
-        // Asumsikan pengguna selalu diarahkan ke /ChatNPT karena produk ini gratis
-        router.push('/ChatNPT');
+        ChatNPTRoute(router);
     }, [router]);
 
     const scrollToSection = useCallback((id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, []);
