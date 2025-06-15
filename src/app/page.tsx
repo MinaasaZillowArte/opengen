@@ -26,6 +26,7 @@ import {
 } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChatNPTRoute } from '@/utils/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
@@ -45,15 +46,6 @@ const AbstractSvgPlaceholder = React.memo(({ className, seed = 0 }: { className?
     );
 });
 AbstractSvgPlaceholder.displayName = 'AbstractSvgPlaceholder';
-
-const ChatNPTRoute = (router: ReturnType<typeof useRouter>) => {
-    const localRedirectUrl = process.env.NEXT_PUBLIC_CHATNPT_URL;
-    if (localRedirectUrl) {
-        window.location.href = localRedirectUrl;
-    } else {
-        router.push('/ChatNPT');
-    }
-};
 
 type InsightItem = {
     headline: string;

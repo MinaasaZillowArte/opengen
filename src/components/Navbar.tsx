@@ -4,9 +4,10 @@
 import Link from 'next/link';
 import { FiCpu, FiMenu, FiX, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { IconType } from 'react-icons';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChatNPTRoute } from '@/utils/navigation';
 
 // Constants for Navbar heights
 const NAVBAR_HEIGHT_MOBILE = 70; // px - Standardized
@@ -17,6 +18,7 @@ interface NavLink {
   label: string;
   description?: string;
   icon?: IconType;
+  action?: (router: ReturnType<typeof useRouter>) => void; // Added for custom actions
 }
 
 interface NavGroup {
@@ -57,7 +59,7 @@ const navLinksData: NavItemType[] = [
   {
     label: 'Products',
     children: [
-      { href: '/ChatNPT', label: 'ChatNPT', description: "Access our flagship AI model." },
+      { action: ChatNPTRoute, label: 'ChatNPT', description: "Access our flagship AI model." } as unknown as NavLink, // Cast to NavLink with action
       { href: '/products/dpl', label: 'Developer Playground (DPL)', description: "Experiment with our models." },
       { href: '/#demo-section', label: 'Live Demos' },
     ],
@@ -82,6 +84,7 @@ export default function Navbar() { // Removed unused NavbarProps
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [openDesktopDropdown, setOpenDesktopDropdown] = useState<string | null>(null);
+  const router = useRouter(); // Initialize router
   const [openDesktopSubDropdown, setOpenDesktopSubDropdown] = useState<string | null>(null);
   const [openMobileSubmenus, setOpenMobileSubmenus] = useState<Record<string, boolean>>({});
 
@@ -291,14 +294,38 @@ export default function Navbar() { // Removed unused NavbarProps
                                 </div>
                               );
                             }
-                            return (
-                              <Link key={child.label} href={(child as NavLink).href} passHref legacyBehavior>
-                                <a className={`block px-5 py-3 text-sm ${childLinkColor} ${childBgHover} rounded-md transition-colors duration-150`}>
-                                  {child.label}
-                                  {(child as NavLink).description && <p className={`text-xs mt-0.5 ${isSpecialDarkPage && !isTransparentEffective ? 'text-gray-500' : 'text-[var(--text-tertiary)]' }`}>{(child as NavLink).description}</p>}
-                                </a>
-                              </Link>
-                            );
+                            // child is NavLink
+                            const navLink = child as NavLink;
+                            if (navLink.action) {
+                              return (
+                                <button
+                                  key={navLink.label}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    if (navLink.action) navLink.action(router);
+                                    setOpenDesktopDropdown(null);
+                                    setOpenDesktopSubDropdown(null);
+                                  }}
+                                  className={`block w-full text-left px-5 py-3 text-sm ${childLinkColor} ${childBgHover} rounded-md transition-colors duration-150`}
+                                >
+                                  {navLink.label}
+                                  {navLink.description && <p className={`text-xs mt-0.5 ${isSpecialDarkPage && !isTransparentEffective ? 'text-gray-500' : 'text-[var(--text-tertiary)]' }`}>{navLink.description}</p>}
+                                </button>
+                              );
+                            } else if (navLink.href) {
+                              return (
+                                <Link key={navLink.label} href={navLink.href} passHref legacyBehavior>
+                                  <a 
+                                    className={`block px-5 py-3 text-sm ${childLinkColor} ${childBgHover} rounded-md transition-colors duration-150`}
+                                    onClick={() => { setOpenDesktopDropdown(null); setOpenDesktopSubDropdown(null);}}
+                                  >
+                                    {navLink.label}
+                                    {navLink.description && <p className={`text-xs mt-0.5 ${isSpecialDarkPage && !isTransparentEffective ? 'text-gray-500' : 'text-[var(--text-tertiary)]' }`}>{navLink.description}</p>}
+                                  </a>
+                                </Link>
+                              );
+                            }
+                            return null; // Should not happen if data is well-formed
                           })}
                         </motion.div>
                       )}
@@ -307,15 +334,30 @@ export default function Navbar() { // Removed unused NavbarProps
                 );
               }
               return (
+                // Top-level NavLink item
                 <motion.div key={item.label} whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
-                  <Link
-                    href={(item as NavLink).href}
-                    className={`${linkBaseClasses} ${currentLinkColorClasses} py-2
-                                after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0
-                                after:bg-[var(--color-primary)] after:transition-all after:duration-300 hover:after:w-full ${activeClass}`}
-                  >
-                    {item.label}
-                  </Link>
+                  {(item as NavLink).action ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if ((item as NavLink).action) (item as NavLink).action!(router);
+                      }}
+                      className={`${linkBaseClasses} ${currentLinkColorClasses} py-2
+                                  after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0
+                                  after:bg-[var(--color-primary)] after:transition-all after:duration-300 hover:after:w-full ${activeClass}`}
+                    >
+                      {item.label}
+                    </button>
+                  ) : (
+                    <Link
+                      href={(item as NavLink).href}
+                      className={`${linkBaseClasses} ${currentLinkColorClasses} py-2
+                                  after:h-[2px] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0
+                                  after:bg-[var(--color-primary)] after:transition-all after:duration-300 hover:after:w-full ${activeClass}`}
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </motion.div>
               );
             })}
@@ -397,32 +439,60 @@ export default function Navbar() { // Removed unused NavbarProps
                                 className={`pl-5 mt-1 space-y-1 border-l-2 ${mobileBorderColor}`}
                               >
                                 {item.children.map(child => {
+                                  const childNavLink = child as NavLink; // Assuming child is NavLink for this level based on structure
                                   if (isNavGroup(child) && child.href) {
                                     return (
                                       <motion.li key={child.label} variants={mobileNavItemVariants}>
-                                        <Link href={child.href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu}>
+                                        <Link href={child.href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu} passHref>
                                           {child.label} (Overview)
                                         </Link>
                                       </motion.li>
                                     );
                                   } else if (isNavGroup(child)) { // Handle nested groups without a direct link
-                                     // For simplicity, mobile doesn't deeply nest further here.
-                                     // You could implement another level of toggle if needed.
-                                     return child.children.map(subItem => (
-                                        <motion.li key={subItem.label} variants={mobileNavItemVariants}>
-                                            <Link href={(subItem as NavLink).href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu}>
+                                     // Render children of this nested group (subItems)
+                                     return child.children.map(subItemUntyped => {
+                                        const subItem = subItemUntyped as NavLink; // Assuming subItems are NavLinks
+                                        if (subItem.action) {
+                                          return (
+                                            <motion.li key={subItem.label} variants={mobileNavItemVariants}>
+                                              <button onClick={(e) => { e.preventDefault(); if (subItem.action) subItem.action(router); closeMobileMenu(); }}
+                                                className={`block w-full text-left py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`}>
                                                 {subItem.label}
-                                            </Link>
-                                        </motion.li>
-                                     ));
+                                              </button>
+                                            </motion.li>
+                                          );
+                                        } else if (subItem.href) {
+                                          return (
+                                            <motion.li key={subItem.label} variants={mobileNavItemVariants}>
+                                              <Link href={subItem.href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu} passHref>
+                                                  {subItem.label}
+                                              </Link>
+                                            </motion.li>
+                                          );
+                                        }
+                                        return null;
+                                     });
                                   }
+                                  // child is a NavLink
+                                  if (childNavLink.action) {
+                                    return (
+                                      <motion.li key={childNavLink.label} variants={mobileNavItemVariants} >
+                                        <button onClick={(e) => { e.preventDefault(); if (childNavLink.action) childNavLink.action(router); closeMobileMenu(); }}
+                                          className={`block w-full text-left py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`}>
+                                          {childNavLink.label}
+                                        </button>
+                                      </motion.li>
+                                    );
+                                  } else if (childNavLink.href) {
                                   return (
-                                    <motion.li key={child.label} variants={mobileNavItemVariants} >
-                                      <Link href={(child as NavLink).href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu}>
-                                        {child.label}
+                                    <motion.li key={childNavLink.label} variants={mobileNavItemVariants} >
+                                      <Link href={childNavLink.href} className={`block py-2.5 px-3 text-sm font-medium ${mobileSubmenuLinkColor} ${mobileBgHover} rounded-md transition-all duration-150`} onClick={closeMobileMenu} passHref>
+                                        {childNavLink.label}
                                       </Link>
                                     </motion.li>
                                   );
+                                  }
+                                  return null;
                                 })}
                               </motion.ul>
                             )}
@@ -431,14 +501,25 @@ export default function Navbar() { // Removed unused NavbarProps
                       );
                     }
                     return (
+                      // Top-level NavLink item in mobile menu
                       <motion.li key={item.label} variants={mobileNavItemVariants}>
-                        <Link
-                          href={(item as NavLink).href}
-                          className={`block py-3.5 px-3 text-base font-semibold ${mobileLinkColor} ${mobileBgHover} rounded-md transition-all duration-200`}
-                          onClick={closeMobileMenu}
-                        >
-                          {item.label}
-                        </Link>
+                        {(item as NavLink).action ? (
+                          <button
+                            onClick={(e) => { e.preventDefault(); if ((item as NavLink).action) (item as NavLink).action!(router); closeMobileMenu(); }}
+                            className={`block w-full text-left py-3.5 px-3 text-base font-semibold ${mobileLinkColor} ${mobileBgHover} rounded-md transition-all duration-200`}
+                          >
+                            {item.label}
+                          </button>
+                        ) : (
+                          <Link
+                            href={(item as NavLink).href}
+                            className={`block py-3.5 px-3 text-base font-semibold ${mobileLinkColor} ${mobileBgHover} rounded-md transition-all duration-200`}
+                            onClick={closeMobileMenu}
+                            passHref
+                          >
+                            {item.label}
+                          </Link>
+                        )}
                       </motion.li>
                     );
                   })}
